@@ -20,6 +20,22 @@ from services.word_service import WordService
 
 
 class WordServiceNoComTests(unittest.TestCase):
+    def test_page_with_images_is_not_treated_as_blank(self) -> None:
+        service = WordService()
+
+        class FakeCount:
+            def __init__(self, count: int) -> None:
+                self.Count = count
+
+        class FakeRange:
+            def __init__(self, text: str, inline_count: int = 0, shape_count: int = 0) -> None:
+                self.Text = text
+                self.InlineShapes = FakeCount(inline_count)
+                self.ShapeRange = FakeCount(shape_count)
+
+        self.assertFalse(service._range_is_blank_or_placeholder_only(FakeRange("", inline_count=1)))
+        self.assertFalse(service._range_is_blank_or_placeholder_only(FakeRange("   ", shape_count=1)))
+
     def test_build_document_without_com_replaces_placeholders(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

@@ -21,7 +21,7 @@ class ProcessServiceWordComTests(unittest.TestCase):
             "self.word_service.open(str(block_word_path), visible=False)",
             "replace_image_placeholder(",
             "clear_unused_image_placeholders(",
-            "cleanup_blank_pages(",
+            "validate_embedded_image_count(",
             "save_document_copy(",
             "print_document(",
             "show_to_user(",

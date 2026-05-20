@@ -535,10 +535,29 @@ class WordService:
             return None
 
     def _range_is_blank_or_placeholder_only(self, page_range) -> bool:
+        if self._range_contains_images(page_range):
+            return False
+
         text = str(getattr(page_range, "Text", "") or "")
         for placeholder_number in range(1, self.MAX_PLACEHOLDER_IMAGES + 1):
             text = text.replace(self._placeholder_text(placeholder_number), "")
         return text.strip(" \t\r\n\f\v\a\x07\u00a0") == ""
+
+    def _range_contains_images(self, page_range) -> bool:
+        try:
+            if int(getattr(page_range.InlineShapes, "Count", 0) or 0) > 0:
+                return True
+        except Exception:
+            pass
+
+        try:
+            shape_range = getattr(page_range, "ShapeRange", None)
+            if shape_range is not None and int(getattr(shape_range, "Count", 0) or 0) > 0:
+                return True
+        except Exception:
+            pass
+
+        return False
 
     def _delete_blank_page_range(self, page_range, page_number: int) -> bool:
         try:

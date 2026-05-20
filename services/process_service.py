@@ -159,7 +159,18 @@ class ProcessService:
             else:
                 real_output_dir = self._build_real_output_dir(output_dir, selected_filter)
                 log(f"Ruta de plantillas generadas: {real_output_dir}")
-                self._print_blocks(word_path_obj, runtime_excel_path, blocks, real_output_dir, temp_path, printer_name, log, status, progress, manual_adjust_callback)
+                self._print_blocks(
+                    word_path_obj,
+                    runtime_excel_path,
+                    blocks,
+                    real_output_dir,
+                    temp_path,
+                    printer_name,
+                    log,
+                    status,
+                    progress,
+                    manual_adjust_callback,
+                )
 
             status("Proceso finalizado.")
             log(f"Proceso completado correctamente: {len(blocks)} bloque(s), {len(records)} registro(s).")
@@ -193,6 +204,7 @@ class ProcessService:
             raise ValidationError("No se pudo crear la carpeta de simulaci?n.")
 
         total_blocks = len(blocks)
+        total_labels = sum(len(block) for block in blocks)
         manual_adjust = manual_adjust or (lambda _block, _total, _path, _mtime: "continuar")
 
         for block_index, block in enumerate(blocks, start=1):
@@ -208,7 +220,16 @@ class ProcessService:
 
                 if self.excel_service.workbook is None:
                     self.excel_service.open(str(runtime_excel_path), visible=False)
-                image_paths = self._prepare_block_images(block, block_index, total_blocks, image_dir, log)
+                image_paths = self._prepare_block_images(
+                    block,
+                    block_index,
+                    total_blocks,
+                    image_dir,
+                    log,
+                    progress,
+                    (block_index - 1) * BLOCK_SIZE,
+                    total_labels,
+                )
                 self.excel_service.close(save_changes=False)
                 shutil.copy2(word_path, runtime_word_path)
                 self.word_service.open(str(runtime_word_path), visible=False)
@@ -218,18 +239,14 @@ class ProcessService:
                     self.word_service.replace_image_placeholder(position, image_path)
 
                 cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
-                cleanup = self.word_service.cleanup_blank_pages(
-                    expected_last_image_page=None,
-                    validation_passes=3,
-                    cleaned_placeholders=cleaned_placeholders,
-                )
+                image_validation = self.word_service.validate_embedded_image_count(len(block))
                 self.word_service.save_document_copy(str(runtime_word_path))
                 baseline_mtime_ns = self._safe_mtime_ns(runtime_word_path)
                 self.word_service.show_to_user()
                 self.word_service.release_to_user()
                 log(
                     f"Bloque {block_index}/{total_blocks}: documento Word COM listo para revisi?n manual. "
-                    f"P?ginas antes/despu?s de limpieza: {cleanup.pages_before}/{cleanup.pages_after}."
+                    f"Im?genes detectadas: {image_validation.detected_count}/{image_validation.expected_count}."
                 )
                 log(f"Plantilla generada correctamente con COM: {runtime_word_path}")
             except Exception:
@@ -284,7 +301,16 @@ class ProcessService:
             )
             if self.excel_service.workbook is None:
                 self.excel_service.open(str(runtime_excel_path), visible=False)
-            image_paths = self._prepare_block_images(block, block_index, total_blocks, image_dir, log)
+            image_paths = self._prepare_block_images(
+                block,
+                block_index,
+                total_blocks,
+                image_dir,
+                log,
+                progress,
+                processed_labels,
+                total_labels,
+            )
             self.excel_service.close(save_changes=False)
             word_opened = False
             try:
@@ -296,11 +322,7 @@ class ProcessService:
                     self.word_service.replace_image_placeholder(position, image_path)
 
                 cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
-                cleanup = self.word_service.cleanup_blank_pages(
-                    expected_last_image_page=None,
-                    validation_passes=3,
-                    cleaned_placeholders=cleaned_placeholders,
-                )
+                image_validation = self.word_service.validate_embedded_image_count(len(block))
                 self.word_service.save_document_copy(str(block_word_path))
                 log(f"Bloque {block_index}/{total_blocks}: documento Word COM guardado en {block_word_path}.")
 
@@ -309,7 +331,7 @@ class ProcessService:
                 self.word_service.print_document(printer_name)
                 log(
                     f"Bloque {block_index}/{total_blocks}: impresi?n solicitada con Word COM usando '{printer_name}'. "
-                    f"P?ginas antes/despu?s de limpieza: {cleanup.pages_before}/{cleanup.pages_after}."
+                    f"Im?genes detectadas: {image_validation.detected_count}/{image_validation.expected_count}."
                 )
             except Exception as exc:
                 self.logger.warning(

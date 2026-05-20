@@ -64,25 +64,26 @@ class ExcelService:
 
         pythoncom_module.CoInitialize()
         self._com_initialized = True
-        self._owns_excel_app = False
+        self._owns_excel_app = True
         self.excel_app = None
         self.workbook = None
         try:
+            self.excel_app = win32_module.DispatchEx("Excel.Application")
+            self.excel_app.Visible = visible
+            self.excel_app.DisplayAlerts = False
+            self.excel_app.ScreenUpdating = False
             try:
-                active_excel = pythoncom_module.GetActiveObject("Excel.Application")
-                self.excel_app = win32_module.Dispatch(active_excel)
-                self._owns_excel_app = False
+                self.excel_app.Interactive = False
             except Exception:
-                self.excel_app = win32_module.DispatchEx("Excel.Application")
-                self._owns_excel_app = True
-            if self._owns_excel_app:
-                self.excel_app.Visible = visible
-                self.excel_app.DisplayAlerts = False
-                self.excel_app.ScreenUpdating = False
-                try:
-                    self.excel_app.Interactive = False
-                except Exception:
-                    pass
+                pass
+            try:
+                self.excel_app.EnableEvents = False
+            except Exception:
+                pass
+            try:
+                self.excel_app.AskToUpdateLinks = False
+            except Exception:
+                pass
             self.workbook = self.excel_app.Workbooks.Open(
                 Filename=str(Path(workbook_path).resolve()),
                 UpdateLinks=0,
