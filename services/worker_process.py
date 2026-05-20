@@ -13,6 +13,7 @@ from services.print_service import PrintService
 from services.process_service import ManualAdjustmentCancelled, ProcessService
 from services.validation_service import ValidationError, ValidationService
 from services.word_service import WordService
+from utils.error_guard import ErrorGuard
 from utils.logger import log_runtime_context, setup_worker_logger
 
 
@@ -75,7 +76,7 @@ def _run_load_filters(logger, excel_path: str) -> int:
         return 0
     except Exception as error:
         logger.exception("Worker falló al cargar filtros.")
-        _emit("error", message=str(error), details=traceback.format_exc())
+        _emit("error", message=ErrorGuard.friendly_message(error), details=traceback.format_exc())
         return 1
 
 
@@ -135,11 +136,11 @@ def _run_process(logger, settings: AppSettings, simulate: bool) -> int:
         return 0
     except ValidationError as error:
         logger.exception("Worker terminó con error de validación.")
-        _emit("error", message=str(error), details=traceback.format_exc())
+        _emit("error", message=ErrorGuard.friendly_message(error), details=traceback.format_exc())
         return 1
     except Exception as error:
         logger.exception("Worker terminó con error inesperado.")
-        _emit("error", message=str(error), details=traceback.format_exc())
+        _emit("error", message=ErrorGuard.friendly_message(error), details=traceback.format_exc())
         return 1
 
 
@@ -154,6 +155,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--simulate", action="store_true")
     parser.add_argument("--working-directory", default="")
     parser.add_argument("--output-directory", default="")
+    parser.add_argument("--debug", action="store_true")
     return parser
 
 
@@ -161,7 +163,7 @@ def worker_main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args, _ = parser.parse_known_args(argv)
     _configure_stdio()
-    logger = setup_worker_logger()
+    logger = setup_worker_logger(debug=args.debug)
     log_runtime_context(logger)
 
     if args.worker_action == "load-filters":

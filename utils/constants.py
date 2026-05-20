@@ -12,6 +12,7 @@ DEFAULT_NETWORK_ROOT = Path(
     r"\\comde019\DFSMDE\PUBLIC\CO_MDE_DISENO_DI\RESPALDO DISEÑOS\SAP - Respaldo diseños\FORMATOS SAP\Automatización"
 )
 LOCAL_APPDATA_ROOT = Path(os.getenv("APPDATA", str(get_user_home_dir()))) / APP_ORGANIZATION / APP_NAME
+SAFE_TEMP_ROOT = LOCAL_APPDATA_ROOT / "temp"
 LOGS_DIR_NAME = "logs"
 
 EXCEL_SHEET_SOURCE = "Hoja1"

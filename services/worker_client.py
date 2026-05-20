@@ -16,7 +16,7 @@ class WorkerClient(QObject):
     progress_received = Signal(int)
     record_count_received = Signal(int)
     filters_received = Signal(list)
-    manual_review_requested = Signal(int, int, str, int)
+    manual_review_requested = Signal(int, int, str, object)
     cancelled = Signal(str)
     finished = Signal()
     failed = Signal(str)

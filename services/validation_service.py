@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import tempfile
 
 from utils.constants import (
     EXCEL_SHEET_LABEL,
@@ -21,12 +22,26 @@ class ValidationError(Exception):
 
 
 class ValidationService:
+    def _validate_file_access(self, path: Path, *, readable: bool = True) -> None:
+        try:
+            if readable:
+                with path.open("rb"):
+                    pass
+            else:
+                with path.open("r+b"):
+                    pass
+        except PermissionError as exc:
+            raise ValidationError(f"No hay permisos suficientes para acceder a '{path}'.") from exc
+        except OSError as exc:
+            raise ValidationError(f"El archivo '{path}' no se puede abrir en este momento. Puede estar bloqueado por otra aplicación.") from exc
+
     def validate_excel_file(self, excel_path: str) -> Path:
         path = Path(excel_path)
         if not path.exists():
             raise ValidationError("El archivo Excel no existe.")
         if path.suffix.lower() not in {".xlsx", ".xlsm", ".xls"}:
             raise ValidationError("El archivo Excel no tiene una extensión válida.")
+        self._validate_file_access(path)
         return path
 
     def validate_word_file(self, word_path: str) -> Path:
@@ -35,6 +50,19 @@ class ValidationService:
             raise ValidationError("La plantilla Word no existe.")
         if path.suffix.lower() not in {".docx", ".docm", ".doc"}:
             raise ValidationError("La plantilla Word no tiene una extensión válida.")
+        self._validate_file_access(path)
+        return path
+
+    def validate_directory_writable(self, directory: str | Path) -> Path:
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        try:
+            with tempfile.NamedTemporaryFile(prefix="automatizacion_sap_check_", dir=str(path), delete=True):
+                pass
+        except PermissionError as exc:
+            raise ValidationError(f"No se puede escribir en la carpeta '{path}'.") from exc
+        except OSError as exc:
+            raise ValidationError(f"No se pudo validar la carpeta de trabajo '{path}'.") from exc
         return path
 
     def validate_selected_filter(self, selected_filter: str) -> str:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from threading import Event
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from services.worker_client import WorkerClient
 from services.validation_service import ValidationError, ValidationService
 from services.word_service import WordService
 from ui.main_window import MainWindow
+from utils.error_guard import ErrorGuard, SafeExecutor
 from utils.config import ConfigManager
 from utils.constants import PROCESS_STATUS_COMPLETED, PROCESS_STATUS_ERROR, PROCESS_STATUS_RUNNING
 
@@ -109,6 +111,7 @@ class MainController:
         )
 
         self.worker_client = WorkerClient(logger, self.window)
+        self.safe_executor = SafeExecutor(logger, lambda message: self.window.show_error("Proceso", message))
 
         self.worker_thread: QThread | None = None
         self.worker: ProcessWorker | None = None
@@ -135,7 +138,11 @@ class MainController:
             self.window.append_log(f"Error: {error}")
         except Exception as error:
             self.logger.exception("Error inesperado en %s.", action_name)
-            self.window.show_error("Proceso", user_message)
+            self.safe_executor.execute(
+                action_name,
+                lambda: (_ for _ in ()).throw(error),
+                user_message=user_message or ErrorGuard.friendly_message(error),
+            )
             self.window.append_log(f"Error inesperado: {error}")
 
     def _bind_events(self) -> None:
@@ -180,6 +187,7 @@ class MainController:
         self.settings.excel_path = path
         self.settings.working_directory = str(Path(path).parent)
         self.window.set_excel_path(path)
+        self.window.set_start_enabled(False)
         self._save_settings()
         self.window.append_log(f"Archivo Excel seleccionado: {path}")
         self.logger.info("Archivo Excel seleccionado: %s", path)
@@ -214,6 +222,7 @@ class MainController:
         if str(parent):
             self.settings.working_directory = str(parent)
         self.window.set_excel_path(path)
+        self.window.set_start_enabled(False)
         self._save_settings()
         self.window.append_log(f"Ruta Excel actualizada manualmente: {path}")
         self.logger.info("Ruta Excel actualizada manualmente: %s", path)
@@ -255,13 +264,25 @@ class MainController:
     def _on_filters_loaded(self, filters: list[str]) -> None:
         try:
             self.window.set_filters(filters)
+            self.window.refresh_filters_button.setEnabled(True)
+            self.window.filter_combo.setEnabled(True)
+
+            if not filters:
+                self.window.set_start_enabled(False)
+                self.window.set_status("No se encontraron filtros válidos.")
+                self.window.append_log("No se encontraron filtros válidos en el Excel.")
+                self.logger.warning("No se encontraron filtros válidos en el Excel.")
+                self.window.show_error("Filtros", "No se encontraron filtros válidos en el Excel.")
+                return
+
             self.window.append_log(f"Filtros cargados: {len(filters)}")
             self.logger.info("Filtros cargados correctamente. Cantidad: %s", len(filters))
             self.window.set_status("Filtros cargados correctamente.")
-            self.window.filter_combo.setEnabled(True)
-            self.window.refresh_filters_button.setEnabled(True)
             if self.settings.selected_filter:
                 self.window.set_selected_filter(self.settings.selected_filter)
+            if not self.window.selected_filter():
+                self.window.set_selected_filter(filters[0])
+            self.window.set_start_enabled(True)
         except Exception:
             self.logger.exception("Error inesperado al aplicar filtros cargados en la UI.")
             self.window.show_error("Filtros", "No se pudieron aplicar los filtros cargados.")
@@ -277,6 +298,7 @@ class MainController:
             self.window.set_status("Error al cargar filtros.")
             self.window.filter_combo.setEnabled(True)
             self.window.refresh_filters_button.setEnabled(True)
+            self.window.set_start_enabled(False)
         except Exception:
             self.logger.exception("Error inesperado al manejar la falla de filtros.")
 
@@ -377,18 +399,26 @@ class MainController:
         self._active_worker_operation = "run-process"
         self.worker_client.start_process(self.settings, simulate=simulate)
 
-    def _on_manual_adjust_requested(self, block_index: int, total_blocks: int, document_path: str, baseline_mtime_ns: int) -> None:
+    def _on_manual_adjust_requested(self, block_index: int, total_blocks: int, document_path: str, baseline_mtime_ns: object) -> None:
         try:
             self._paused_waiting_for_block_review = True
             self._current_block_index = block_index
             self._current_total_blocks = total_blocks
             self._current_block_file = document_path
-            self._current_block_baseline_mtime_ns = baseline_mtime_ns
+            self._current_block_baseline_mtime_ns = int(baseline_mtime_ns)
             self.window.set_manual_review_mode(True, block_index, total_blocks, document_path)
+            if document_path:
+                QTimer.singleShot(300, lambda path=document_path: self._open_manual_review_document(path))
             self.logger.info("Bloque %s/%s listo para revisión manual: %s", block_index, total_blocks, document_path)
         except Exception:
             self.logger.exception("Error inesperado al activar revisión manual del bloque.")
             self.window.show_error("Proceso", "No se pudo abrir la revisión manual del bloque.")
+
+    def _open_manual_review_document(self, document_path: str) -> None:
+        try:
+            os.startfile(document_path)
+        except Exception:
+            self.logger.exception("No se pudo abrir el documento Word para revisión manual: %s", document_path)
 
     def _continue_after_manual_review(self) -> None:
         block = self._current_block_index or 0

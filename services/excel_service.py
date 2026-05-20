@@ -53,6 +53,8 @@ class ExcelService:
     def __init__(self) -> None:
         self.excel_app = None
         self.workbook = None
+        self._owns_excel_app = False
+        self._com_initialized = False
 
     def open(self, workbook_path: str, visible: bool = False) -> None:
         try:
@@ -61,17 +63,52 @@ class ExcelService:
             raise RuntimeError("pywin32 no estÃ¡ instalado.") from exc
 
         pythoncom_module.CoInitialize()
-        self.excel_app = win32_module.DispatchEx("Excel.Application")
-        self.excel_app.Visible = visible
-        self.excel_app.DisplayAlerts = False
-        self.excel_app.ScreenUpdating = False
-        self.workbook = self.excel_app.Workbooks.Open(str(Path(workbook_path).resolve()))
+        self._com_initialized = True
+        self._owns_excel_app = False
+        self.excel_app = None
+        self.workbook = None
+        try:
+            try:
+                active_excel = pythoncom_module.GetActiveObject("Excel.Application")
+                self.excel_app = win32_module.Dispatch(active_excel)
+                self._owns_excel_app = False
+            except Exception:
+                self.excel_app = win32_module.DispatchEx("Excel.Application")
+                self._owns_excel_app = True
+            if self._owns_excel_app:
+                self.excel_app.Visible = visible
+                self.excel_app.DisplayAlerts = False
+                self.excel_app.ScreenUpdating = False
+                try:
+                    self.excel_app.Interactive = False
+                except Exception:
+                    pass
+            self.workbook = self.excel_app.Workbooks.Open(
+                Filename=str(Path(workbook_path).resolve()),
+                UpdateLinks=0,
+                ReadOnly=False,
+                IgnoreReadOnlyRecommended=True,
+                AddToMru=False,
+                Notify=False,
+                Local=True,
+            )
+        except Exception:
+            self._teardown(save_changes=False)
+            raise
 
     def close(self, save_changes: bool = False) -> None:
+        self._teardown(save_changes=save_changes)
+
+    def _teardown(self, save_changes: bool = False) -> None:
         workbook = self.workbook
         excel_app = self.excel_app
+        owns_excel_app = self._owns_excel_app
+        com_initialized = self._com_initialized
+
         self.workbook = None
         self.excel_app = None
+        self._owns_excel_app = False
+        self._com_initialized = False
 
         try:
             if workbook is not None:
@@ -80,10 +117,14 @@ class ExcelService:
             pass
 
         try:
-            if excel_app is not None:
+            if excel_app is not None and owns_excel_app:
                 excel_app.Quit()
         except Exception:
             pass
+
+        # Intentionally do not CoUninitialize here.
+        # Word and Excel COM run in the same worker apartment; uninitializing
+        # one service would disconnect the other still-alive COM proxy.
 
     def get_sheet_names(self) -> list[str]:
         return [sheet.Name for sheet in self.workbook.Worksheets]

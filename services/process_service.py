@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import subprocess
 import shutil
 import tempfile
 from datetime import datetime
@@ -11,7 +12,8 @@ from services.excel_service import ExcelService
 from services.print_service import PrintService
 from services.validation_service import ValidationError, ValidationService
 from services.word_service import WordService
-from utils.constants import BLOCK_SIZE, LABEL_IMAGE_HEIGHT_PX, LABEL_IMAGE_WIDTH_PX, TARGET_PRINTER_NAME, TEMP_IMAGES_DIR_NAME
+from utils.constants import BLOCK_SIZE, LABEL_IMAGE_HEIGHT_PX, LABEL_IMAGE_WIDTH_PX, SAFE_TEMP_ROOT, TARGET_PRINTER_NAME, TEMP_IMAGES_DIR_NAME
+from utils.error_guard import ErrorGuard
 
 
 LogCallback = Callable[[str], None]
@@ -86,7 +88,7 @@ class ProcessService:
         simulation_dir = self._build_simulation_dir(output_dir, selected_filter) if simulate else None
 
         self.logger.info(
-            "Proceso iniciado. Simulación=%s Excel=%s Word=%s Filtro=%s Output=%s",
+            "Proceso iniciado. SimulaciÃ³n=%s Excel=%s Word=%s Filtro=%s Output=%s",
             simulate,
             excel_path_obj,
             word_path_obj,
@@ -103,14 +105,22 @@ class ProcessService:
             log(f"Impresora objetivo: {printer_name}")
         status("Preparando copias temporales de trabajo...")
 
-        temp_dir = tempfile.mkdtemp(prefix="automatizacion_sap_")
+        temp_root = self.validation_service.validate_directory_writable(SAFE_TEMP_ROOT)
+        temp_dir = tempfile.mkdtemp(prefix="automatizacion_sap_", dir=str(temp_root))
         temp_path = Path(temp_dir)
         try:
             runtime_excel_path = temp_path / excel_path_obj.name
-            shutil.copy2(excel_path_obj, runtime_excel_path)
+            try:
+                shutil.copy2(excel_path_obj, runtime_excel_path)
+            except Exception as exc:
+                raise ValidationError(f"No se pudo crear la copia temporal de Excel en '{runtime_excel_path}'.") from exc
             log(f"Excel temporal de trabajo: {runtime_excel_path}")
 
-            self.excel_service.open(str(runtime_excel_path), visible=False)
+            try:
+                self.excel_service.open(str(runtime_excel_path), visible=False)
+            except Exception as exc:
+                raise ValidationError(ErrorGuard.friendly_message(exc)) from exc
+            log(f"Excel temporal de trabajo abierto correctamente: {runtime_excel_path}")
             self.validation_service.validate_required_sheets(self.excel_service.get_sheet_names())
             self.validation_service.validate_required_headers(self.excel_service.get_headers())
 
@@ -120,7 +130,7 @@ class ProcessService:
                     f"fila {row}: '{raw}' -> '{normalized}'" for row, raw, normalized in identifier_audit[:5]
                 )
                 log(
-                    f"Auditoría columna A: {len(identifier_audit)} valor(es) normalizados a texto. "
+                    f"AuditorÃ­a columna A: {len(identifier_audit)} valor(es) normalizados a texto. "
                     f"Ejemplos: {sample}"
                 )
 
@@ -137,6 +147,7 @@ class ProcessService:
             if simulate:
                 self._simulate_blocks(
                     word_path_obj,
+                    runtime_excel_path,
                     blocks,
                     selected_filter,
                     simulation_dir,
@@ -148,16 +159,16 @@ class ProcessService:
             else:
                 real_output_dir = self._build_real_output_dir(output_dir, selected_filter)
                 log(f"Ruta de plantillas generadas: {real_output_dir}")
-                self._print_blocks(word_path_obj, blocks, real_output_dir, printer_name, log, status, progress, manual_adjust_callback)
+                self._print_blocks(word_path_obj, runtime_excel_path, blocks, real_output_dir, temp_path, printer_name, log, status, progress, manual_adjust_callback)
 
             status("Proceso finalizado.")
             log(f"Proceso completado correctamente: {len(blocks)} bloque(s), {len(records)} registro(s).")
             self.logger.info("Proceso finalizado correctamente.")
         except ManualAdjustmentCancelled:
-            self.logger.info("Proceso cancelado por el usuario durante revisión manual.")
+            self.logger.info("Proceso cancelado por el usuario durante revisiÃ³n manual.")
             raise
         except ValidationError:
-            self.logger.exception("Error de validación durante el proceso.")
+            self.logger.exception("Error de validaciÃ³n durante el proceso.")
             raise
         except Exception as error:
             self.logger.exception("Error durante el proceso.")
@@ -169,6 +180,7 @@ class ProcessService:
     def _simulate_blocks(
         self,
         word_path: Path,
+        runtime_excel_path: Path,
         blocks: list[list[AssetRecord]],
         selected_filter: str,
         simulation_dir: Path | None,
@@ -178,121 +190,180 @@ class ProcessService:
         manual_adjust: ManualAdjustCallback | None,
     ) -> None:
         if simulation_dir is None:
-            raise ValidationError("No se pudo crear la carpeta de simulación.")
+            raise ValidationError("No se pudo crear la carpeta de simulaci?n.")
 
         total_blocks = len(blocks)
         manual_adjust = manual_adjust or (lambda _block, _total, _path, _mtime: "continuar")
 
         for block_index, block in enumerate(blocks, start=1):
             runtime_word_path = simulation_dir / self._block_document_name(selected_filter, block_index)
+            word_opened = False
             try:
-                shutil.copy2(word_path, runtime_word_path)
                 status(f"Simulando bloque {block_index} de {total_blocks}")
-                log(f"Inicio de generación por bloques: simulación bloque {block_index}/{total_blocks}, cantidad {len(block)}. Copia: {runtime_word_path}")
-
-                self.word_service.open(str(runtime_word_path), visible=False)
-                self.word_service.prepare_placeholder_document()
-                log("Plantilla Word real preparada sobre copia del bloque; se reemplazan placeholders <img1>...<img27> sin crear páginas dinámicas.")
-                log(f"Layout visual Word: {self.word_service.get_label_layout_details()}.")
                 image_dir = simulation_dir / TEMP_IMAGES_DIR_NAME / f"bloque_{block_index:03d}"
-                self._write_and_insert_block(block, block_index, total_blocks, image_dir, log)
+                log(
+                    f"Inicio de generaci?n por bloques: simulaci?n bloque {block_index}/{total_blocks}, cantidad {len(block)}. "
+                    f"Plantilla origen: {word_path}; salida: {runtime_word_path}"
+                )
+
+                if self.excel_service.workbook is None:
+                    self.excel_service.open(str(runtime_excel_path), visible=False)
+                image_paths = self._prepare_block_images(block, block_index, total_blocks, image_dir, log)
+                self.excel_service.close(save_changes=False)
+                shutil.copy2(word_path, runtime_word_path)
+                self.word_service.open(str(runtime_word_path), visible=False)
+                word_opened = True
+                self.word_service.prepare_placeholder_document()
+                for position, image_path in enumerate(image_paths, start=1):
+                    self.word_service.replace_image_placeholder(position, image_path)
+
+                cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
+                cleanup = self.word_service.cleanup_blank_pages(
+                    expected_last_image_page=None,
+                    validation_passes=3,
+                    cleaned_placeholders=cleaned_placeholders,
+                )
                 self.word_service.save_document_copy(str(runtime_word_path))
-                baseline_mtime_ns = self._safe_mtime_ns(runtime_word_path)
-                pdf_path = simulation_dir / f"{runtime_word_path.stem}.pdf"
-                self.word_service.export_pdf(str(pdf_path))
-                log(f"Simulación guardada en Word: {runtime_word_path}")
-                log(f"Simulación guardada en PDF: {pdf_path}")
                 baseline_mtime_ns = self._safe_mtime_ns(runtime_word_path)
                 self.word_service.show_to_user()
                 self.word_service.release_to_user()
-                log(f"Plantilla generada correctamente: {runtime_word_path}")
+                log(
+                    f"Bloque {block_index}/{total_blocks}: documento Word COM listo para revisi?n manual. "
+                    f"P?ginas antes/despu?s de limpieza: {cleanup.pages_before}/{cleanup.pages_after}."
+                )
+                log(f"Plantilla generada correctamente con COM: {runtime_word_path}")
             except Exception:
-                self.logger.exception("Error generando simulación del bloque %s/%s.", block_index, total_blocks)
+                self.logger.exception("Error generando simulaci?n del bloque %s/%s.", block_index, total_blocks)
                 raise
+
+            try:
+                status(
+                    f"Ajust?/imprim?/guard? el bloque {block_index}/{total_blocks} en Word. "
+                    "Cuando hayas guardado, presion? Continuar."
+                )
+                log(f"Bloque {block_index}/{total_blocks}: documento abierto para revisi?n visual: {runtime_word_path}")
+                action = manual_adjust(block_index, total_blocks, str(runtime_word_path), baseline_mtime_ns).strip().lower()
+                if action == "cancelar":
+                    raise ManualAdjustmentCancelled("Proceso cancelado por el usuario durante la revisi?n del bloque.")
+
+                saved = self._was_saved_after(runtime_word_path, baseline_mtime_ns)
+                log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'s?' if saved else 'no' }.")
+                log(f"Bloque {block_index}/{total_blocks}: se contin?a al siguiente bloque.")
             finally:
-                self.word_service.close(save_changes=False)
-
-            status(
-                f"Ajustá/imprimí/guardá el bloque {block_index}/{total_blocks} en Word. "
-                "Cuando hayas guardado, presioná Continuar."
-            )
-            log(f"Bloque {block_index}/{total_blocks}: documento abierto para revisión visual: {runtime_word_path}")
-            action = manual_adjust(block_index, total_blocks, str(runtime_word_path), baseline_mtime_ns).strip().lower()
-            if action == "cancelar":
-                raise ManualAdjustmentCancelled("Proceso cancelado por el usuario durante la revisión del bloque.")
-
-            saved = self._was_saved_after(runtime_word_path, baseline_mtime_ns)
-            log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'sí' if saved else 'no'}.")
-            log(f"Bloque {block_index}/{total_blocks}: se continúa al siguiente bloque.")
+                if word_opened:
+                    self.word_service.close(save_changes=False)
 
             progress(int((block_index / total_blocks) * 95))
 
     def _print_blocks(
         self,
         word_path: Path,
+        runtime_excel_path: Path,
         blocks: list[list[AssetRecord]],
         output_dir: Path,
+        workspace_dir: Path,
         printer_name: str,
         log: LogCallback,
         status: StatusCallback,
         progress: ProgressCallback,
         manual_adjust: ManualAdjustCallback | None,
     ) -> None:
+        manual_adjust = manual_adjust or (lambda _block, _total, _path, _mtime: "continuar")
         total_blocks = len(blocks)
         total_labels = sum(len(block) for block in blocks)
         processed_labels = 0
         for block_index, block in enumerate(blocks, start=1):
             block_word_path = output_dir / self._block_document_name(word_path.stem, block_index)
-            try:
-                status(f"Generando bloque {block_index} de {total_blocks}")
-                log(f"Inicio de generación por bloques: bloque {block_index}/{total_blocks}, cantidad {len(block)}. Copia: {block_word_path}")
+            status(f"Generando bloque {block_index} de {total_blocks}")
+            log(f"Inicio de generaci?n por bloques: bloque {block_index}/{total_blocks}, cantidad {len(block)}. Copia: {block_word_path}")
 
-                image_dir = output_dir / TEMP_IMAGES_DIR_NAME / f"bloque_{block_index:03d}"
-                log(f"Bloque {block_index}/{total_blocks}: creando Word desde plantilla {word_path}.")
-                self.word_service.create_from_template(str(word_path), visible=False)
-                log(f"Bloque {block_index}/{total_blocks}: Word creado correctamente desde plantilla.")
+            image_dir = output_dir / TEMP_IMAGES_DIR_NAME / f"bloque_{block_index:03d}"
+            log(
+                f"Transici?n Excel?Word por COM: bloque {block_index}/{total_blocks} listo. "
+                f"Temp workspace activo={workspace_dir.exists()} plantilla Word origen={word_path.exists()}."
+            )
+            if self.excel_service.workbook is None:
+                self.excel_service.open(str(runtime_excel_path), visible=False)
+            image_paths = self._prepare_block_images(block, block_index, total_blocks, image_dir, log)
+            self.excel_service.close(save_changes=False)
+            word_opened = False
+            try:
+                shutil.copy2(word_path, block_word_path)
+                self.word_service.open(str(block_word_path), visible=False)
+                word_opened = True
                 self.word_service.prepare_placeholder_document()
-                log(f"Bloque {block_index}/{total_blocks}: plantilla preparada para reemplazar <img1>...<img27>.")
-                log("Plantilla Word real preparada sobre copia del bloque; se reemplazan placeholders <img1>...<img27>. No hay impresión automática.")
-                log(f"Layout visual Word: {self.word_service.get_label_layout_details()}.")
-                self._write_and_insert_block(
-                    block,
+                for position, image_path in enumerate(image_paths, start=1):
+                    self.word_service.replace_image_placeholder(position, image_path)
+
+                cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
+                cleanup = self.word_service.cleanup_blank_pages(
+                    expected_last_image_page=None,
+                    validation_passes=3,
+                    cleaned_placeholders=cleaned_placeholders,
+                )
+                self.word_service.save_document_copy(str(block_word_path))
+                log(f"Bloque {block_index}/{total_blocks}: documento Word COM guardado en {block_word_path}.")
+
+                baseline_mtime_ns = self._safe_mtime_ns(block_word_path)
+                self.print_service.set_default_printer(printer_name)
+                self.word_service.print_document(printer_name)
+                log(
+                    f"Bloque {block_index}/{total_blocks}: impresi?n solicitada con Word COM usando '{printer_name}'. "
+                    f"P?ginas antes/despu?s de limpieza: {cleanup.pages_before}/{cleanup.pages_after}."
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    "Word COM fall? en el bloque %s/%s; usando fallback sin COM.",
                     block_index,
                     total_blocks,
-                    image_dir,
-                    log,
+                    exc_info=True,
                 )
-                log(f"Bloque {block_index}/{total_blocks}: imágenes insertadas y validadas.")
-                self.word_service.save_document_copy(str(block_word_path))
-                log(f"Bloque {block_index}/{total_blocks}: documento guardado en {block_word_path}.")
-                self.word_service.print_document(printer_name)
-                log(f"Bloque {block_index}/{total_blocks}: enviado a impresión en {printer_name} y guardado en {block_word_path}.")
-            except Exception:
-                self.logger.exception("Error generando bloque real %s/%s.", block_index, total_blocks)
-                raise
-            finally:
-                self.word_service.close(save_changes=False)
+                if word_opened:
+                    self.word_service.close(save_changes=False)
+                    word_opened = False
+                self.word_service.build_document_without_com(
+                    str(word_path),
+                    str(block_word_path),
+                    image_paths,
+                    len(block),
+                )
+                baseline_mtime_ns = self._safe_mtime_ns(block_word_path)
+                log(
+                    f"Bloque {block_index}/{total_blocks}: documento generado con fallback sin COM."
+                )
 
-            log(f"Bloque {block_index}/{total_blocks}: se continúa al siguiente bloque.")
+            try:
+                status(
+                    f"Ajust?/imprim?/guard? el bloque {block_index}/{total_blocks} en Word. "
+                    "Cuando hayas guardado, presion? Continuar."
+                )
+                log(f"Bloque {block_index}/{total_blocks}: documento abierto para revisi?n manual: {block_word_path}")
+                action = manual_adjust(block_index, total_blocks, str(block_word_path), baseline_mtime_ns).strip().lower()
+                if action == "cancelar":
+                    raise ManualAdjustmentCancelled("Proceso cancelado por el usuario durante la revisi?n del bloque.")
+
+                saved = self._was_saved_after(block_word_path, baseline_mtime_ns)
+                log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'s?' if saved else 'no' }.")
+                log(f"Bloque {block_index}/{total_blocks}: se contin?a al siguiente bloque.")
+            finally:
+                if word_opened:
+                    self.word_service.close(save_changes=False)
 
             processed_labels += len(block)
             progress(int((processed_labels / total_labels) * 100))
-        log(f"Fin de generación por bloques. Total bloques: {total_blocks}; etiquetas: {total_labels}.")
+        log(f"Fin de generaci?n por bloques. Total bloques: {total_blocks}; etiquetas: {total_labels}.")
 
-    def _write_and_insert_block(
+    def _prepare_block_images(
         self,
         block: list[AssetRecord],
         block_index: int,
         total_blocks: int,
         image_dir: Path,
         log: LogCallback,
-        manual_adjust: ManualAdjustCallback | None = None,
-        printer_name: str | None = None,
-        status: StatusCallback | None = None,
         progress: ProgressCallback | None = None,
         progress_base: int = 0,
         total_labels: int | None = None,
-    ) -> None:
+    ) -> list[Path]:
         self.excel_service.write_block_to_label_sheet(block)
         generated_assets = self.excel_service.get_generated_assets(len(block))
         source_assets = [record.asset_id for record in block]
@@ -300,12 +371,11 @@ class ProcessService:
 
         image_dir.mkdir(parents=True, exist_ok=True)
         log(
-            f"Bloque {block_index}/{total_blocks}: se usarán placeholders <img1>...<img{len(block)}> "
-            "y luego se limpiarán los placeholders restantes hasta <img27>."
+            f"Bloque {block_index}/{total_blocks}: se usarÃ¡n placeholders <img1>...<img{len(block)}> "
+            "y luego se limpiarÃ¡n los placeholders restantes hasta <img27>."
         )
 
         image_paths: list[Path] = []
-        last_inserted_page: int | None = None
         for position, record in enumerate(block):
             image_path = image_dir / f"label_{position + 1:03d}.png"
             exported = self.excel_service.export_label_shape_image(
@@ -316,142 +386,13 @@ class ProcessService:
             image_paths.append(Path(exported.output_path))
             log(
                 f"Bloque {block_index}/{total_blocks}: etiqueta {position + 1}/{len(block)} exportada desde "
-                f"{exported.group_name}; tamaño final {exported.target_size_px[0]}x{exported.target_size_px[1]} px; "
+                f"{exported.group_name}; tamaÃ±o final {exported.target_size_px[0]}x{exported.target_size_px[1]} px; "
                 f"archivo {exported.output_path}."
-            )
-            placeholder_number = position + 1
-            visual = self.word_service.replace_image_placeholder(placeholder_number, exported.output_path)
-            last_inserted_page = visual.page_number
-            log(
-                f"Bloque {block_index}/{total_blocks}: etiqueta {position + 1}/{len(block)} "
-                f"insertada en placeholder {visual.slot_name} (página {visual.page_number}): activo {record.asset_id}."
-            )
-            log(
-                "Validación visual etiqueta "
-                f"{position + 1} del bloque; placeholder {visual.slot_name}; "
-                f"esperado {visual.expected_width_cm:.2f}x{visual.expected_height_cm:.2f} cm; "
-                f"aplicado {visual.applied_width_cm:.2f}x{visual.applied_height_cm:.2f} cm; "
-                f"ajuste={'sí' if visual.adjusted else 'no'} ({visual.details})."
             )
             if progress is not None and total_labels:
                 progress(int(((progress_base + position + 1) / total_labels) * 100))
 
-        cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
-        if cleaned_placeholders:
-            log(
-                f"Bloque {block_index}/{total_blocks}: placeholders no usados limpiados: "
-                f"{', '.join(cleaned_placeholders)}."
-            )
-        else:
-            log(f"Bloque {block_index}/{total_blocks}: no quedaron placeholders no usados por limpiar.")
-
-        cleanup = self.word_service.cleanup_blank_pages(
-            expected_last_image_page=last_inserted_page,
-            validation_passes=3,
-            cleaned_placeholders=cleaned_placeholders,
-        )
-        log(
-            f"Bloque {block_index}/{total_blocks}: limpieza final Word: "
-            f"páginas antes={cleanup.pages_before}, después={cleanup.pages_after}, "
-            f"eliminadas={cleanup.removed_pages}, pasadas={cleanup.validation_passes}, "
-            f"última página con imagen válida={cleanup.expected_last_image_page or 'n/d'}."
-        )
-        if cleanup.removed_page_numbers:
-            log(
-                f"Bloque {block_index}/{total_blocks}: páginas vacías/sobrantes eliminadas: "
-                f"{', '.join(str(page) for page in cleanup.removed_page_numbers)}."
-            )
-        if cleanup.remaining_placeholders:
-            raise ValidationError(
-                "La limpieza final Word no pudo eliminar placeholders visibles: "
-                + ", ".join(cleanup.remaining_placeholders)
-            )
-
-        validation = self.word_service.validate_embedded_image_count(len(block))
-        log(
-            f"Bloque {block_index}/{total_blocks}: validación conteo imágenes Word: "
-            f"esperadas={validation.expected_count}, detectadas={validation.detected_count}."
-        )
-        if validation.extra_count:
-            raise ValidationError(
-                f"El Word del bloque {block_index}/{total_blocks} quedó con imágenes de más: "
-                f"esperadas={validation.expected_count}, detectadas={validation.detected_count}. "
-                "No se abre al usuario hasta corregir la plantilla/copia."
-            )
-        if validation.missing_count:
-            log(
-                f"Bloque {block_index}/{total_blocks}: faltan {validation.missing_count} imagen(es); "
-                f"se repondrán posiciones inferidas {', '.join(str(pos) for pos in validation.missing_positions)} "
-                "en página(s) nueva(s)."
-            )
-            repaired_positions = self._repair_missing_block_images(
-                block,
-                block_index,
-                total_blocks,
-                image_dir,
-                image_paths,
-                validation.missing_positions,
-                log,
-            )
-            repaired_validation = self.word_service.validate_embedded_image_count(len(block))
-            log(
-                f"Bloque {block_index}/{total_blocks}: imágenes repuestas: "
-                f"{', '.join(str(pos) for pos in repaired_positions)}; "
-                f"conteo final detectado={repaired_validation.detected_count}."
-            )
-            if repaired_validation.detected_count != repaired_validation.expected_count:
-                raise ValidationError(
-                    f"La reparación de imágenes del bloque {block_index}/{total_blocks} no alcanzó el conteo exacto: "
-                    f"esperadas={repaired_validation.expected_count}, detectadas={repaired_validation.detected_count}. "
-                    "No se abre el Word porque el bloque no está completo."
-                )
-            validation = repaired_validation
-
-        log(
-            f"Bloque {block_index}/{total_blocks}: validación final OK; "
-            f"no quedan placeholders <img...> visibles y el conteo de imágenes es exacto "
-            f"({validation.detected_count}/{validation.expected_count})."
-        )
-
-    def _repair_missing_block_images(
-        self,
-        block: list[AssetRecord],
-        block_index: int,
-        total_blocks: int,
-        image_dir: Path,
-        image_paths: list[Path],
-        missing_positions: list[int],
-        log: LogCallback,
-    ) -> list[int]:
-        repaired_positions: list[int] = []
-        for placeholder_number in missing_positions:
-            if placeholder_number < 1 or placeholder_number > len(block):
-                raise ValidationError(
-                    f"No se puede reponer la imagen {placeholder_number} del bloque {block_index}/{total_blocks}: "
-                    f"el bloque tiene {len(block)} registro(s)."
-                )
-
-            image_path = image_paths[placeholder_number - 1] if placeholder_number <= len(image_paths) else image_dir / f"label_{placeholder_number:03d}.png"
-            if not image_path.exists():
-                exported = self.excel_service.export_label_shape_image(
-                    placeholder_number - 1,
-                    image_path,
-                    target_px=(LABEL_IMAGE_WIDTH_PX, LABEL_IMAGE_HEIGHT_PX),
-                )
-                image_path = Path(exported.output_path)
-                log(
-                    f"Bloque {block_index}/{total_blocks}: PNG para reposición de etiqueta {placeholder_number} "
-                    f"regenerado desde {exported.group_name}: {image_path}."
-                )
-
-            record = block[placeholder_number - 1]
-            visual = self.word_service.append_label_image_on_new_page(placeholder_number, image_path)
-            repaired_positions.append(placeholder_number)
-            log(
-                f"Bloque {block_index}/{total_blocks}: etiqueta {placeholder_number}/{len(block)} "
-                f"repuesta en página nueva {visual.page_number}: activo {record.asset_id}; archivo {image_path}."
-            )
-        return repaired_positions
+        return image_paths
 
     def _build_simulation_dir(self, output_dir: Path, selected_filter: str) -> Path:
         safe_filter = "".join(char if char.isalnum() or char in ("-", "_") else "_" for char in selected_filter).strip("_")
@@ -483,3 +424,4 @@ class ProcessService:
 
     def _format_cm(self, value: float | None) -> str:
         return "n/d" if value is None else f"{value:.2f}"
+

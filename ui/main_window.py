@@ -292,6 +292,7 @@ class MainWindow(QMainWindow):
         self.start_button = QPushButton("Generar e imprimir")
         self.start_button.setObjectName("primaryButton")
         self.start_button.setMinimumHeight(48)
+        self.start_button.setEnabled(False)
         self.start_button.clicked.connect(self.start_process_requested.emit)
 
         self.cancel_process_button = QPushButton("Cancelar proceso")
@@ -631,6 +632,9 @@ class MainWindow(QMainWindow):
         index = self.filter_combo.findText(value)
         if index >= 0:
             self.filter_combo.setCurrentIndex(index)
+
+    def set_start_enabled(self, enabled: bool) -> None:
+        self.start_button.setEnabled(enabled)
 
     def set_status(self, message: str) -> None:
         self.status_label.setText(message)

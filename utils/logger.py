@@ -35,12 +35,12 @@ def get_log_file_path(base_dir: Path | None = None) -> Path:
     return get_logs_dir(base_dir) / f"app_{datetime.now():%Y-%m-%d}.log"
 
 
-def setup_logger(base_dir: Path | None = None) -> Logger:
+def setup_logger(base_dir: Path | None = None, debug: bool = False) -> Logger:
     logs_dir = get_logs_dir(base_dir)
     log_file = logs_dir / f"app_{datetime.now():%Y-%m-%d}.log"
 
     logger = logging.getLogger(APP_NAME)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
         handler.close()
@@ -60,6 +60,7 @@ def setup_logger(base_dir: Path | None = None) -> Logger:
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(logging.DEBUG if debug else logging.INFO)
 
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
@@ -77,12 +78,12 @@ def setup_logger(base_dir: Path | None = None) -> Logger:
     return logger
 
 
-def setup_worker_logger(base_dir: Path | None = None) -> Logger:
+def setup_worker_logger(base_dir: Path | None = None, debug: bool = False) -> Logger:
     logs_dir = get_logs_dir(base_dir)
     log_file = logs_dir / f"worker_{datetime.now():%Y-%m-%d}.log"
 
     logger = logging.getLogger(f"{APP_NAME}.worker")
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
         handler.close()

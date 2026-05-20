@@ -17,7 +17,7 @@ La aplicación permite:
 - pegar cada etiqueta inline, centrada, con tamaño visual **5.03 cm x 2.54 cm**,
 - validar y autoajustar posición/tamaño contra la celda Word,
 - generar un documento Word nuevo por bloque copiando la plantilla original,
-- imprimir automáticamente cada bloque en **SATO WS408**.
+- intentar imprimir cada bloque en **SATO WS408**.
 
 ## Arquitectura
 
@@ -50,7 +50,6 @@ Automatización/
 
 - Windows
 - Microsoft Excel instalado
-- Microsoft Word instalado
 - Impresora **SATO WS408** instalada con ese nombre exacto
 - Python 3.11 o superior recomendado
 
@@ -99,7 +98,7 @@ python main.py
    - crea un layout Word de una etiqueta por página sobre la copia del bloque,
    - inserta salto de página antes de cada etiqueta excepto la primera,
    - valida tamaño y contenedor de cada etiqueta, corrigiendo si excede,
-   - en prueba visual genera documentos separados `{filtro}_bloque_001.docx`, `{filtro}_bloque_002.docx`, etc.; cada documento contiene hasta 27 páginas/etiquetas, abre el primero sin imprimir y deja el resto en la carpeta de simulación,
+    - en prueba visual genera documentos separados `{filtro}_bloque_001.docx`, `{filtro}_bloque_002.docx`, etc.; cada bloque se abre con la aplicación asociada y queda esperando tu confirmación antes de seguir,
    - en impresión real imprime automáticamente cada copia de bloque de 27 páginas/etiquetas.
 
 ## Validaciones implementadas
@@ -132,8 +131,8 @@ Por eso la aplicación:
 
 ### Word
 
-Se usa **COM con pywin32** para generar el documento automático en Word.  
-La plantilla original se mantiene intacta: cada bloque trabaja sobre una copia `.docx` propia. Sobre esa copia se limpia el contenido y se crea una página por etiqueta: antes de cada etiqueta posterior a la primera se inserta un salto de página, se agrega un contenedor 1x1 centrado y se pega la imagen inline con validación visual programática. Las constantes históricas de grilla 3x9 quedan solo como referencia legacy del bloque Excel; no gobiernan el flujo automático de Word.
+La generación final de cada bloque se hace **sin COM de Word**, usando `python-docx` sobre una copia de la plantilla.  
+Cada bloque reemplaza los placeholders `<img1>...<img27>` con las PNG exportadas desde Excel y guarda un `.docx` nuevo por bloque. La impresión, cuando aplica, se delega al asociado predeterminado de Windows sin automatizar Word COM.
 
 ### Impresión
 
@@ -141,10 +140,10 @@ Cada bloque se imprime automáticamente al terminar, sin confirmación intermedi
 
 ## Advertencias técnicas
 
-### 1. Word y Excel deben estar instalados
+### 1. Excel sigue requiriendo Office
 
-La solución depende del motor COM de Microsoft Office.  
-No sirve en equipos sin Office.
+La extracción de datos y exportación de imágenes sigue usando Excel instalado.  
+Word ya no es necesario para generar los `.docx`, aunque sí para abrirlos o imprimirlos con la aplicación asociada.
 
 ### 2. La plantilla Word puede requerir ajuste fino
 

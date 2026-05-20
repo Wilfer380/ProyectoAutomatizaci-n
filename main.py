@@ -1,4 +1,5 @@
 import sys
+import os
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -24,6 +25,7 @@ def _build_parser() -> ArgumentParser:
     parser.add_argument("--simulate", action="store_true")
     parser.add_argument("--working-directory", default="")
     parser.add_argument("--output-directory", default="")
+    parser.add_argument("--debug", action="store_true")
     return parser
 
 
@@ -54,12 +56,14 @@ def _build_app_icon() -> QIcon:
 
 def main() -> int:
     args, _ = _build_parser().parse_known_args()
+    if args.debug:
+        os.environ["AUTOMATIZACION_SAP_DEBUG"] = "1"
     if args.worker:
         from services.worker_process import worker_main
 
         return worker_main(sys.argv[1:])
 
-    logger = setup_logger()
+    logger = setup_logger(debug=args.debug)
     _set_windows_app_id()
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)

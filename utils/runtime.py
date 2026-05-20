@@ -13,9 +13,14 @@ def get_main_entrypoint() -> Path:
 
 def build_worker_command() -> list[str]:
     entrypoint = get_main_entrypoint()
+    debug_enabled = os.environ.get("AUTOMATIZACION_SAP_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     if getattr(sys, "frozen", False):
-        return [str(entrypoint)]
-    return [sys.executable, str(entrypoint)]
+        command = [str(entrypoint)]
+    else:
+        command = [sys.executable, str(entrypoint)]
+    if debug_enabled:
+        command.append("--debug")
+    return command
 
 
 def get_user_home_dir() -> Path:
