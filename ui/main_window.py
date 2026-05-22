@@ -678,7 +678,6 @@ class MainWindow(QMainWindow):
         self.select_word_button.setEnabled(not busy)
         self.refresh_filters_button.setEnabled(not busy)
         self.configure_printer_button.setEnabled(not busy)
-        self.filter_combo.setEnabled(not busy)
         self.simulate_button.setEnabled(False)
         self.simulate_button.setVisible(False)
         self.start_button.setEnabled(not busy)

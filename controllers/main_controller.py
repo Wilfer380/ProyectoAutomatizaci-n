@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from threading import Event
 from pathlib import Path
+from typing import Iterable
 
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
@@ -188,6 +189,7 @@ class MainController:
         self.settings.working_directory = str(Path(path).parent)
         self.window.set_excel_path(path)
         self.window.set_start_enabled(False)
+        self._restore_cached_filters_for_excel(path)
         self._save_settings()
         self.window.append_log(f"Archivo Excel seleccionado: {path}")
         self.logger.info("Archivo Excel seleccionado: %s", path)
@@ -223,6 +225,7 @@ class MainController:
             self.settings.working_directory = str(parent)
         self.window.set_excel_path(path)
         self.window.set_start_enabled(False)
+        self._restore_cached_filters_for_excel(path)
         self._save_settings()
         self.window.append_log(f"Ruta Excel actualizada manualmente: {path}")
         self.logger.info("Ruta Excel actualizada manualmente: %s", path)
@@ -257,13 +260,18 @@ class MainController:
 
         self.window.set_status("Cargando filtros desde Excel...")
         self.window.refresh_filters_button.setEnabled(False)
-        self.window.filter_combo.setEnabled(False)
         self._active_worker_operation = "load-filters"
         self.worker_client.start_load_filters(self.settings.excel_path)
 
     def _on_filters_loaded(self, filters: list[str]) -> None:
         try:
+            self._cache_filters_for_current_excel(filters)
             self.window.set_filters(filters)
+            if self.settings.selected_filter:
+                self.window.set_selected_filter(self.settings.selected_filter)
+            if not self.window.selected_filter() and filters:
+                self.window.set_selected_filter(filters[0])
+            self._save_settings()
             self.window.refresh_filters_button.setEnabled(True)
             self.window.filter_combo.setEnabled(True)
 
@@ -278,10 +286,6 @@ class MainController:
             self.window.append_log(f"Filtros cargados: {len(filters)}")
             self.logger.info("Filtros cargados correctamente. Cantidad: %s", len(filters))
             self.window.set_status("Filtros cargados correctamente.")
-            if self.settings.selected_filter:
-                self.window.set_selected_filter(self.settings.selected_filter)
-            if not self.window.selected_filter():
-                self.window.set_selected_filter(filters[0])
             self.window.set_start_enabled(True)
         except Exception:
             self.logger.exception("Error inesperado al aplicar filtros cargados en la UI.")
@@ -523,3 +527,26 @@ class MainController:
 
     def _save_settings(self) -> None:
         self.config_manager.save(self.settings)
+
+    def _excel_cache_key(self, excel_path: str) -> str:
+        path = Path(excel_path)
+        try:
+            stat = path.stat()
+            return f"{path.resolve()}|{stat.st_mtime_ns}|{stat.st_size}"
+        except OSError:
+            return str(path.resolve())
+
+    def _restore_cached_filters_for_excel(self, excel_path: str) -> None:
+        cached = self.settings.filter_cache.get(self._excel_cache_key(excel_path), [])
+        self.window.set_filters(cached)
+        if self.settings.selected_filter:
+            self.window.set_selected_filter(self.settings.selected_filter)
+        if not self.window.selected_filter() and cached:
+            self.window.set_selected_filter(cached[0])
+
+    def _cache_filters_for_current_excel(self, filters: Iterable[str]) -> None:
+        excel_path = self.settings.excel_path.strip()
+        if not excel_path:
+            return
+
+        self.settings.filter_cache[self._excel_cache_key(excel_path)] = [str(item) for item in filters]
