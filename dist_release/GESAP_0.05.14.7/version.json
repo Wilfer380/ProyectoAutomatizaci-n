@@ -1,0 +1,7 @@
+{
+  "app": "GeneradorEtiquetasSAP",
+  "display_name": "GeneradorEtiquetasSAP",
+  "version": "0.05.14.7",
+  "install_root": "C:\\PDI_APP\\GeneradorEtiquetasSAP",
+  "distribution_mode": "zip-portable-with-installer"
+}

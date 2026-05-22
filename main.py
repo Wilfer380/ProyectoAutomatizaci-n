@@ -89,6 +89,7 @@ def main() -> int:
         if not app_icon.isNull():
             window.setWindowIcon(app_icon)
         window.controller = MainController(window, config_manager, logger)
+        app.aboutToQuit.connect(window.controller.cleanup_on_exit)
         window.show()
         logger.info("Interfaz cargada correctamente.")
 

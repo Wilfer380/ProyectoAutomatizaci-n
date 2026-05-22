@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import ctypes
+import logging
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
+from ctypes import wintypes
 
 from models.asset_record import AssetRecord
 from utils.constants import (
@@ -17,6 +22,7 @@ from utils.constants import (
     SOURCE_HEADERS,
 )
 from utils.normalization import normalize_excel_scalar
+from utils.constants import APP_NAME
 
 try:
     from PIL import Image, ImageDraw, ImageFont, ImageGrab
@@ -51,6 +57,7 @@ class LabelImageExportResult:
 
 class ExcelService:
     def __init__(self) -> None:
+        self.logger = logging.getLogger(APP_NAME)
         self.excel_app = None
         self.workbook = None
         self._owns_excel_app = False
@@ -69,9 +76,13 @@ class ExcelService:
         self.workbook = None
         try:
             self.excel_app = win32_module.DispatchEx("Excel.Application")
-            self.excel_app.Visible = visible
+            self.excel_app.Visible = False
             self.excel_app.DisplayAlerts = False
             self.excel_app.ScreenUpdating = False
+            try:
+                self.excel_app.DisplayStatusBar = False
+            except Exception:
+                pass
             try:
                 self.excel_app.Interactive = False
             except Exception:
@@ -81,9 +92,14 @@ class ExcelService:
             except Exception:
                 pass
             try:
+                self.excel_app.UserControl = False
+            except Exception:
+                pass
+            try:
                 self.excel_app.AskToUpdateLinks = False
             except Exception:
                 pass
+            self.logger.info("Instancia de Excel creada. Visible=False")
             self.workbook = self.excel_app.Workbooks.Open(
                 Filename=str(Path(workbook_path).resolve()),
                 UpdateLinks=0,
@@ -93,6 +109,8 @@ class ExcelService:
                 Notify=False,
                 Local=True,
             )
+            self._replace_unsupported_xlookup_formulas()
+            self.logger.info("Excel abierto en segundo plano: %s", Path(workbook_path).resolve())
         except Exception:
             self._teardown(save_changes=False)
             raise
@@ -119,16 +137,159 @@ class ExcelService:
 
         try:
             if excel_app is not None and owns_excel_app:
+                self._close_own_excel_login_windows(excel_app)
+        except Exception:
+            self.logger.exception("No se pudo cerrar la ventana de inicio de sesión de Excel durante la limpieza.")
+
+        try:
+            if excel_app is not None and owns_excel_app:
                 excel_app.Quit()
+                self.logger.info("Excel cerrado al finalizar el proceso.")
         except Exception:
             pass
+
+        try:
+            if excel_app is not None and owns_excel_app:
+                self._close_own_excel_login_windows(excel_app)
+        except Exception:
+            self.logger.exception("No se pudo verificar/cerrar Excel tras Quit().")
 
         # Intentionally do not CoUninitialize here.
         # Word and Excel COM run in the same worker apartment; uninitializing
         # one service would disconnect the other still-alive COM proxy.
 
+    def _close_own_excel_login_windows(self, excel_app) -> None:
+        excel_pid = self._get_excel_pid(excel_app)
+        if excel_pid <= 0:
+            self.logger.info("No se pudo identificar el PID de la instancia propia de Excel al cerrar.")
+            return
+
+        closed_titles: list[str] = []
+        failed_titles: list[str] = []
+
+        @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        def enum_windows_proc(hwnd, lparam):  # noqa: ANN001, ARG001
+            try:
+                pid = self._get_window_pid(hwnd)
+                if pid != excel_pid:
+                    return True
+                title = self._get_window_title(hwnd)
+                if not title or not self._is_excel_login_window(title):
+                    return True
+                if self._close_window(hwnd):
+                    closed_titles.append(title)
+                else:
+                    failed_titles.append(title)
+                return True
+            except Exception:
+                return True
+
+        ctypes.windll.user32.EnumWindows(enum_windows_proc, 0)
+        if closed_titles:
+            self.logger.info("Se detectó y cerró la ventana de Excel propia: %s", "; ".join(closed_titles))
+        if failed_titles:
+            self.logger.warning("Se detectó la ventana de Excel propia pero no pudo cerrarse: %s", "; ".join(failed_titles))
+        if not closed_titles and not failed_titles:
+            self.logger.info("No se detectó ventana propia de Excel para cerrar durante la limpieza final.")
+
+    def _get_excel_pid(self, excel_app) -> int:
+        try:
+            hwnd = int(excel_app.Hwnd)
+        except Exception:
+            return 0
+        return self._get_window_pid(hwnd) if hwnd else 0
+
+    def _get_window_pid(self, hwnd: int) -> int:
+        pid = ctypes.c_ulong(0)
+        ctypes.windll.user32.GetWindowThreadProcessId(wintypes.HWND(hwnd), ctypes.byref(pid))
+        return int(pid.value)
+
+    def _get_window_title(self, hwnd: int) -> str:
+        length = ctypes.windll.user32.GetWindowTextLengthW(wintypes.HWND(hwnd))
+        if length <= 0:
+            return ""
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        ctypes.windll.user32.GetWindowTextW(wintypes.HWND(hwnd), buffer, length + 1)
+        return buffer.value.strip()
+
+    def _close_window(self, hwnd: int) -> bool:
+        WM_CLOSE = 0x0010
+        result = bool(ctypes.windll.user32.PostMessageW(wintypes.HWND(hwnd), WM_CLOSE, 0, 0))
+        if not result:
+            result = bool(ctypes.windll.user32.ShowWindow(wintypes.HWND(hwnd), 0))
+        return result
+
+    def _is_excel_login_window(self, title: str) -> bool:
+        lowered = title.lower()
+        return any(
+            keyword in lowered
+            for keyword in (
+                "inicia sesión",
+                "iniciar sesión",
+                "sign in",
+                "comenzar a usar excel",
+            )
+        )
+
     def get_sheet_names(self) -> list[str]:
         return [sheet.Name for sheet in self.workbook.Worksheets]
+
+    def _replace_unsupported_xlookup_formulas(self) -> None:
+        if self.workbook is None:
+            return
+
+        worksheet = self.workbook.Worksheets(EXCEL_SHEET_LABEL)
+        used_range = worksheet.UsedRange
+        rows = used_range.Rows.Count
+        cols = used_range.Columns.Count
+        replaced = 0
+
+        for row in range(1, rows + 1):
+            for col in range(1, cols + 1):
+                cell = used_range.Cells(row, col)
+                try:
+                    formula = str(cell.Formula or "")
+                except Exception:
+                    continue
+                if "_xlfn.XLOOKUP" not in formula:
+                    continue
+                converted = self._convert_xlookup_formula(formula)
+                if not converted:
+                    continue
+                try:
+                    cell.Formula = converted
+                    replaced += 1
+                except Exception:
+                    continue
+
+        if replaced:
+            self.logger.info("Se reemplazaron %s fórmula(s) XLOOKUP incompatibles por fórmulas compatibles.", replaced)
+
+    @staticmethod
+    def _convert_xlookup_formula(formula: str) -> str | None:
+        normalized = formula.strip()
+        if not normalized:
+            return None
+
+        if normalized.startswith("="):
+            normalized = normalized[1:]
+        if normalized.startswith("+"):
+            normalized = normalized[1:]
+
+        prefix = "_xlfn.XLOOKUP("
+        if not normalized.upper().startswith(prefix.upper()) or not normalized.endswith(")"):
+            return None
+
+        inner = normalized[len(prefix) : -1]
+        parts = [part.strip() for part in inner.split(",", 3)]
+        if len(parts) != 4:
+            return None
+
+        lookup_value, lookup_array, return_array, default_value = parts
+        if not default_value:
+            default_value = '""'
+
+        return f"=IFERROR(INDEX({return_array},MATCH({lookup_value},{lookup_array},0)),{default_value})"
 
     def get_headers(self) -> list[str]:
         worksheet = self.workbook.Worksheets(EXCEL_SHEET_SOURCE)

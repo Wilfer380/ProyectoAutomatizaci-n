@@ -647,8 +647,6 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(value)
 
     def append_log(self, message: str) -> None:
-        if not self.log_panel.isVisible():
-            self.log_panel.setVisible(True)
         self.log_output.appendPlainText(message)
         self.statusBar().showMessage(message)
 

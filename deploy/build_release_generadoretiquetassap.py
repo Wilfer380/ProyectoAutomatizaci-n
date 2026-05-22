@@ -18,7 +18,9 @@ from deploy.paths_config_generadoretiquetassap import (
     INSTALL_ROOT,
     INSTALLER_EXE_NAME,
     LAUNCHER_EXE_NAME,
+    LATEST_RELEASE_DIR,
     PROJECT_ROOT,
+    RELEASE_SHORT_NAME,
     RELEASE_DIR,
     RELEASE_VERSION,
     RELEASE_ZIP,
@@ -44,8 +46,16 @@ def clean_build_outputs() -> None:
         target = PROJECT_ROOT / relative
         if target.exists():
             shutil.rmtree(target)
+    if DIST_RELEASE_DIR.exists():
+        for child in DIST_RELEASE_DIR.iterdir():
+            if child.is_dir() and child.name.startswith(f"{RELEASE_SHORT_NAME}_"):
+                shutil.rmtree(child)
+            elif child.is_file() and child.suffix.lower() == ".zip" and child.stem.startswith(f"{RELEASE_SHORT_NAME}_"):
+                child.unlink()
     if RELEASE_DIR.exists():
         shutil.rmtree(RELEASE_DIR)
+    if LATEST_RELEASE_DIR.exists():
+        shutil.rmtree(LATEST_RELEASE_DIR)
     if RELEASE_ZIP.exists():
         RELEASE_ZIP.unlink()
     DIST_RELEASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -104,6 +114,7 @@ def write_version(target: Path) -> None:
 def assemble_release() -> None:
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
     payload_dir = RELEASE_DIR / APP_PAYLOAD_DIR_NAME
+    latest_dir = LATEST_RELEASE_DIR
     app_dist_dir = PROJECT_ROOT / "dist" / APP_NAME
     launcher_exe = PROJECT_ROOT / "dist" / LAUNCHER_EXE_NAME
     installer_exe = PROJECT_ROOT / "dist" / INSTALLER_EXE_NAME
@@ -118,6 +129,10 @@ def assemble_release() -> None:
     shutil.copy2(installer_exe, RELEASE_DIR / INSTALLER_EXE_NAME)
     write_leeme(RELEASE_DIR / "LEEME.txt")
     write_version(RELEASE_DIR / "version.json")
+
+    if latest_dir.exists():
+        shutil.rmtree(latest_dir)
+    shutil.copytree(RELEASE_DIR, latest_dir)
 
 
 def zip_release() -> None:
@@ -136,6 +151,8 @@ def verify_release() -> None:
         RELEASE_DIR / APP_PAYLOAD_DIR_NAME / "_internal",
         RELEASE_DIR / "LEEME.txt",
         RELEASE_DIR / "version.json",
+        LATEST_RELEASE_DIR / "version.json",
+        LATEST_RELEASE_DIR / APP_PAYLOAD_DIR_NAME / APP_EXE_NAME,
     ]
     missing = [str(path) for path in checks if not path.exists()]
     if missing:

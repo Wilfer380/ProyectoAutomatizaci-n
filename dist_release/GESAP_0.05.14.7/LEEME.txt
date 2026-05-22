@@ -1,0 +1,24 @@
+GeneradorEtiquetasSAP - paquete de instalación portable
+Versión: 0.05.14.7
+
+INSTRUCCIONES
+1. Extraiga este ZIP en una carpeta local, por ejemplo Descargas.
+2. Ejecute Installer_GeneradorEtiquetasSAP.exe con doble clic.
+3. El instalador copiará la aplicación a:
+   C:\PDI_APP\GeneradorEtiquetasSAP
+4. Se creará un acceso directo en el escritorio llamado GeneradorEtiquetasSAP.
+
+REQUISITOS DEL EQUIPO
+- Windows.
+- Microsoft Excel y Microsoft Word instalados.
+- Impresora SATO WS408 instalada con ese nombre exacto para impresión real.
+
+CONTENIDO DEL PAQUETE
+- Installer_GeneradorEtiquetasSAP.exe: instalador gráfico.
+- Launcher_GeneradorEtiquetasSAP.exe: lanzador que queda instalado en C:\PDI_APP\GeneradorEtiquetasSAP.
+- app: aplicación principal y dependencias.
+- version.json: versión del paquete.
+
+NOTA
+Este paquete no usa TTS/voz. Si el antivirus bloquea la ejecución por ser un EXE interno sin firma,
+solicite autorización de TI o agregue la excepción correspondiente.

@@ -130,6 +130,24 @@ class MainController:
         self._load_settings_into_view()
         self.logger.info("Controlador principal inicializado.")
 
+    def cleanup_on_exit(self) -> None:
+        try:
+            self.logger.info("Cierre de aplicación solicitado.")
+            if self.worker_client.is_running():
+                self.logger.info("Hay un proceso secundario activo al cerrar la aplicación.")
+            self.worker_client.shutdown()
+
+            excel_service = self.process_service.excel_service
+            if excel_service.excel_app is not None or excel_service.workbook is not None:
+                self.logger.info("Se detectó una instancia propia de Excel abierta al cerrar la aplicación.")
+            else:
+                self.logger.info("No había una instancia propia de Excel abierta al cerrar la aplicación.")
+            self.process_service.excel_service.close(save_changes=False)
+            self.process_service.word_service.close(save_changes=False)
+            self.logger.info("Limpieza de recursos al cerrar la aplicación completada.")
+        except Exception:
+            self.logger.exception("Error durante la limpieza de cierre de la aplicación.")
+
     def _safe_ui_action(self, action_name: str, callback, *, user_message: str = "Se produjo un error inesperado.") -> None:
         try:
             callback()

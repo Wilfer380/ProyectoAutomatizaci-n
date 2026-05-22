@@ -26,6 +26,7 @@ class WorkerClient(QObject):
         self.logger = logger
         self._process: QProcess | None = None
         self._stdout_buffer = ""
+        self._stderr_buffer = ""
         self._operation = ""
         self._completed = False
         self._failed = False
@@ -66,6 +67,7 @@ class WorkerClient(QObject):
             raise RuntimeError("El proceso secundario ya está en ejecución.")
 
         self._stdout_buffer = ""
+        self._stderr_buffer = ""
         self._operation = action
         self._completed = False
         self._failed = False
@@ -84,6 +86,7 @@ class WorkerClient(QObject):
 
         command = build_worker_command()
         program, program_args = command[0], command[1:]
+        self.logger.info("Iniciando worker: accion=%s programa=%s args=%s", action, program, program_args + ["--worker", "--worker-action", action] + args)
         process.start(program, program_args + ["--worker", "--worker-action", action] + args)
         if not process.waitForStarted(5000):
             self._process = None
@@ -173,6 +176,7 @@ class WorkerClient(QObject):
         output = bytes(self._process.readAllStandardError()).decode("utf-8", errors="replace").strip()
         if not output:
             return
+        self._stderr_buffer += output + "\n"
         self.logger.warning("[worker stderr] %s", output)
         self.log_received.emit(output)
 
@@ -186,7 +190,10 @@ class WorkerClient(QObject):
             message = "El proceso secundario terminó inesperadamente."
         else:
             message = "Ocurrió un error en el proceso secundario."
-        self.logger.error("Worker process error: %s", message)
+        if self._stderr_buffer.strip():
+            self.logger.error("Worker process error: %s\nÚltimo stderr:\n%s", message, self._stderr_buffer.rstrip())
+        else:
+            self.logger.error("Worker process error: %s", message)
         self.failed.emit(message)
 
     def _handle_finished(self, exit_code: int, exit_status: QProcess.ExitStatus) -> None:
@@ -201,12 +208,16 @@ class WorkerClient(QObject):
             else:
                 message = "El proceso secundario devolvió una salida incompleta."
             self._failed = True
-            self.logger.error(message)
+            if self._stderr_buffer.strip():
+                self.logger.error("%s\nÚltimo stderr:\n%s", message, self._stderr_buffer.rstrip())
+            else:
+                self.logger.error(message)
             self.failed.emit(message)
 
         self._process.deleteLater()
         self._process = None
         self._stdout_buffer = ""
+        self._stderr_buffer = ""
         self._operation = ""
 
     def _protocol_error(self, message: str) -> None:
@@ -217,3 +228,22 @@ class WorkerClient(QObject):
         self.failed.emit("La respuesta del proceso secundario fue inválida.")
         if self._process is not None:
             self._process.kill()
+
+    def shutdown(self) -> None:
+        process = self._process
+        if process is None:
+            self.logger.info("Cierre del worker: no había proceso secundario activo.")
+            return
+
+        try:
+            if process.state() != QProcess.NotRunning:
+                self.logger.info("Cierre de aplicación: deteniendo worker propio (%s).", self._operation or "sin operación")
+                process.terminate()
+                if not process.waitForFinished(3000):
+                    self.logger.warning("El worker no terminó a tiempo; forzando cierre del proceso propio.")
+                    process.kill()
+                    process.waitForFinished(3000)
+            else:
+                self.logger.info("Cierre del worker: el proceso secundario ya estaba detenido.")
+        except Exception:
+            self.logger.exception("Error al cerrar el proceso secundario propio durante el apagado de la app.")

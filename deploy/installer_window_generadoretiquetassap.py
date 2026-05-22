@@ -132,6 +132,13 @@ class InstallerWindow:
         shutil.copy2(self.launcher_source, target)
         return target
 
+    def _copy_version_file(self) -> None:
+        source_version = self.source_dir / "version.json"
+        if not source_version.exists():
+            return
+        INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_version, INSTALL_ROOT / "version.json")
+
     def _launch_installed_app(self, launcher_target: Path) -> None:
         subprocess.Popen([str(launcher_target)], cwd=str(INSTALL_ROOT))
 
@@ -164,6 +171,8 @@ class InstallerWindow:
             self._copy_payload()
             self._set_progress(75, "Copiando launcher...")
             launcher_target = self._copy_launcher()
+            self._set_progress(82, "Guardando versión instalada...")
+            self._copy_version_file()
             self._set_progress(90, "Creando acceso directo en el escritorio...")
             self._create_desktop_shortcut(launcher_target)
             self._set_progress(100, "Instalación completada correctamente.")
