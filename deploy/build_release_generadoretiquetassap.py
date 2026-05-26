@@ -68,7 +68,7 @@ def build_executables() -> None:
         "Installer_GeneradorEtiquetasSAP.spec",
     ]
     for spec in specs:
-        run([sys.executable, "-m", "PyInstaller", "--noconfirm", spec])
+        run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", spec])
 
 
 def write_leeme(target: Path) -> None:

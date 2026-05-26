@@ -330,6 +330,17 @@ class WordService:
         # Keep alerts suppressed here too; Word sign-in / first-run prompts
         # are disruptive during manual review.
         self.word_app.DisplayAlerts = 0
+        try:
+            self.word_app.Options.PrintDrawingObjects = True
+        except Exception:
+            pass
+        try:
+            view = self.word_app.ActiveWindow.View
+            view.ShowDrawings = True
+            view.ShowPicturePlaceHolders = False
+            view.Type = 3  # wdPrintView
+        except Exception:
+            pass
         self.document.Activate()
 
     def release_to_user(self) -> None:

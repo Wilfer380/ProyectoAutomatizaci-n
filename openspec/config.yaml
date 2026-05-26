@@ -1,0 +1,58 @@
+schema: spec-driven
+strict_tdd: true
+persistence: openspec
+context: |
+  Project: GeneradorEtiquetasSAP automation.
+  Stack: Python 3.11+ desktop app with PySide6 GUI, pywin32 COM for Excel, python-docx for Word, Pillow for image handling.
+  Architecture: layered UI/controller/service/model/utils design with deploy helpers and Windows-specific automation flows.
+  Testing: unittest-based tests plus manual Excel/Word smoke scripts; no coverage, linter, formatter, or type-checker config detected.
+  Style: Windows-only automation, Spanish product/docs, English code identifiers, no existing SDD bootstrap found.
+testing:
+  detected: "2026-05-25"
+  strict_tdd: true
+  test_runner:
+    command: "python -m unittest discover -s tests"
+    framework: "unittest"
+  layers:
+    unit:
+      available: true
+      tool: unittest
+    integration:
+      available: partial
+      tool: smoke scripts / COM-backed Excel-Word flow
+    e2e:
+      available: false
+      tool: "—"
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter:
+      available: false
+      command: ""
+    type_checker:
+      available: false
+      command: ""
+    formatter:
+      available: false
+      command: ""
+rules:
+  proposal:
+    - Keep scope tight and reversible.
+  specs:
+    - Use RFC 2119 keywords.
+    - Write scenarios in Given/When/Then.
+  design:
+    - Document Windows automation boundaries explicitly.
+    - Preserve COM vs non-COM behavior separation.
+  tasks:
+    - Split work into small reviewable steps.
+  apply:
+    - Follow existing module layout and naming.
+    - Preserve current Excel/Word automation behavior.
+  verify:
+    test_command: "python -m unittest discover -s tests"
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Preserve audit trail in archive.

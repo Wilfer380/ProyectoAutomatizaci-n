@@ -438,9 +438,17 @@ class MainController:
 
     def _open_manual_review_document(self, document_path: str) -> None:
         try:
-            os.startfile(document_path)
+            review_service = WordService()
+            review_service.open(document_path, visible=True)
+            review_service.show_to_user()
+            review_service.release_to_user()
+            self.logger.info("Documento Word abierto con COM para revisión manual: %s", document_path)
         except Exception:
             self.logger.exception("No se pudo abrir el documento Word para revisión manual: %s", document_path)
+            try:
+                os.startfile(document_path)
+            except Exception:
+                self.logger.exception("Tampoco se pudo abrir el documento con la asociación del sistema: %s", document_path)
 
     def _continue_after_manual_review(self) -> None:
         block = self._current_block_index or 0
