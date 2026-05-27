@@ -65,7 +65,9 @@ class ErrorGuard:
 
 
 class SafeExecutor:
-    def __init__(self, logger: Logger, user_message_callback: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, logger: Logger, user_message_callback: Callable[[str], None] | None = None
+    ) -> None:
         self.logger = logger
         self.user_message_callback = user_message_callback
 
@@ -96,10 +98,14 @@ class SafeExecutor:
                 try:
                     self.user_message_callback(message)
                 except Exception:
-                    self.logger.exception("No se pudo mostrar el mensaje amigable al usuario.")
+                    self.logger.exception(
+                        "No se pudo mostrar el mensaje amigable al usuario."
+                    )
             if on_error is not None:
                 try:
                     on_error(exc, message)
                 except Exception:
-                    self.logger.exception("No se pudo ejecutar el callback de error seguro.")
+                    self.logger.exception(
+                        "No se pudo ejecutar el callback de error seguro."
+                    )
             return default
