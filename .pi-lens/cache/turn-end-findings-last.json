@@ -1,6 +1,6 @@
 {
   "signature": "openspec/changes/mvvm-custom-preview/apply-progress.md::ℹ️ Advisory — no action required this turn:\nCode-quality warnings introduced/touched this turn: 1 across 1 file(s).\nTop rules: pi-lens×1\nDetails written to .pi-lens/cache/code-quality-warnings.json\nNo action required unless you are already refactoring these areas.",
-  "sessionId": "lens-mpobuvjv-48f0c9da",
-  "projectSeqStart": 12,
-  "projectSeqEnd": 13
+  "sessionId": "lens-mpofxtob-25c8217b",
+  "projectSeqStart": 35,
+  "projectSeqEnd": 36
 }

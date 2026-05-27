@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-05-27T17:19:55.117Z",
+  "generatedAt": "2026-05-27T19:17:37.677Z",
   "scope": "turn_delta",
-  "sessionId": "lens-mpobuvjv-48f0c9da",
-  "turnIndex": 13,
-  "projectSeqStart": 12,
-  "projectSeqEnd": 13,
+  "sessionId": "lens-mpofxtob-25c8217b",
+  "turnIndex": 35,
+  "projectSeqStart": 35,
+  "projectSeqEnd": 36,
   "deltaOnly": true,
   "files": [
     {
       "filePath": "C:\\Users\\maicolj\\ProyectoAutomatizaci-n\\openspec\\changes\\mvvm-custom-preview\\apply-progress.md",
       "displayPath": "openspec/changes/mvvm-custom-preview/apply-progress.md",
-      "fileSeq": 1,
+      "fileSeq": 2,
       "warnings": [
         {
           "id": "cq:cc1a77a1d7",

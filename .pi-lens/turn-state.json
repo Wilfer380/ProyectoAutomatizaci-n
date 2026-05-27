@@ -1,37 +1,47 @@
 {
   "files": {
-    "models/asset_record.py": {
+    "tests/test_main_view_model.py": {
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 12
+          "end": 111
+        }
+      ],
+      "importsChanged": true,
+      "lastEdit": "2026-05-27T19:17:50.522Z"
+    },
+    "view_models/main_view_model.py": {
+      "modifiedRanges": [
+        {
+          "start": 1,
+          "end": 98
         }
       ],
       "importsChanged": false,
-      "lastEdit": "2026-05-27T17:20:04.790Z"
+      "lastEdit": "2026-05-27T19:17:50.529Z"
     },
-    "tests/test_excel_service.py": {
+    "tests/test_preview_view_model.py": {
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 78
+          "end": 92
         }
       ],
       "importsChanged": true,
-      "lastEdit": "2026-05-27T17:20:04.796Z"
+      "lastEdit": "2026-05-27T19:17:50.535Z"
     },
-    "services/excel_service.py": {
+    "view_models/preview_view_model.py": {
       "modifiedRanges": [
         {
           "start": 1,
-          "end": 88
+          "end": 45
         }
       ],
-      "importsChanged": true,
-      "lastEdit": "2026-05-27T17:20:04.802Z"
+      "importsChanged": false,
+      "lastEdit": "2026-05-27T19:17:50.541Z"
     }
   },
   "turnCycles": 0,
   "maxCycles": 3,
-  "lastUpdated": "2026-05-27T17:20:04.802Z"
+  "lastUpdated": "2026-05-27T19:17:50.541Z"
 }

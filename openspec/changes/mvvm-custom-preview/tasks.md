@@ -61,3 +61,15 @@ Chain strategy: feature-branch-chain
 10. **Finalize End-to-End Integration**: 
     - Target: Application Entry Point (`main.py`) and `PreviewViewModel`.
     - Action: Wire the "Confirmar" action directly to invoke the `print_labels` function from `print_service.py`. Ensure all pieces (extraction -> view model -> preview UI -> print) function sequentially without errors.
+
+### PR 5: UI/UX, Driver Detection, and Installer Robustness
+11. **UI/UX Polishing and Screen Freeze Prevention**:
+    - Target: `views/main_window.py` and `view_models/main_view_model.py`.
+    - Action: Ensure all heavy operations run on `QThread` (already initiated in PR 2) to prevent the main UI from freezing. Improve visual feedback (spinners, clear status messages) during the extraction.
+12. **Driver Detection (SATO WS408)**:
+    - Target: `services/print_service.py` or new `utils/driver_check.py`.
+    - Action: Check available OS printers (`QPrinterInfo.availablePrinterNames()`). If "SATO WS408" is missing, throw a custom error to the ViewModel.
+    - The UI must display an error modal telling the user: "Controlador SATO WS408 no detectado. Por favor instálelo o contacte a TI."
+13. **Installer and Launcher Improvements**:
+    - Target: `.spec` files (`GeneradorEtiquetasSAP.spec`, etc.) and deployment scripts.
+    - Action: Ensure the installer packages correctly, cleans up logs gracefully, and has better unhandled exception hooks (already partially in `logger.py` but we need to ensure the user gets a friendly dialog instead of a silent crash). Add a README note about the driver prerequisite for the installer.
