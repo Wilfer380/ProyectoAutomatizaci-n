@@ -1,38 +1,15 @@
 {
-  "generatedAt": "2026-05-27T19:17:37.677Z",
+  "generatedAt": "2026-05-27T21:06:05.092Z",
   "scope": "turn_delta",
-  "sessionId": "lens-mpofxtob-25c8217b",
-  "turnIndex": 35,
-  "projectSeqStart": 35,
-  "projectSeqEnd": 36,
+  "sessionId": "lens-mpojwzbh-9669d83f",
+  "turnIndex": 26,
+  "projectSeqStart": 40,
+  "projectSeqEnd": 40,
   "deltaOnly": true,
-  "files": [
-    {
-      "filePath": "C:\\Users\\maicolj\\ProyectoAutomatizaci-n\\openspec\\changes\\mvvm-custom-preview\\apply-progress.md",
-      "displayPath": "openspec/changes/mvvm-custom-preview/apply-progress.md",
-      "fileSeq": 2,
-      "warnings": [
-        {
-          "id": "cq:cc1a77a1d7",
-          "filePath": "C:\\Users\\maicolj\\ProyectoAutomatizaci-n\\openspec\\changes\\mvvm-custom-preview\\apply-progress.md",
-          "displayPath": "openspec/changes/mvvm-custom-preview/apply-progress.md",
-          "severity": "warning",
-          "tool": "pi-lens",
-          "message": "Pi-lens analysis unavailable. Tools for markdown not installed.",
-          "category": "other",
-          "origin": "dispatch"
-        }
-      ]
-    }
-  ],
+  "files": [],
   "summary": {
-    "warnings": 1,
-    "files": 1,
-    "topRules": [
-      {
-        "rule": "pi-lens",
-        "count": 1
-      }
-    ]
+    "warnings": 0,
+    "files": 0,
+    "topRules": []
   }
 }

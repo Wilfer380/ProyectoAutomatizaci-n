@@ -45,13 +45,8 @@ EXCEL_LABEL_GROUP_NAMES = [
 
 TEMP_IMAGES_DIR_NAME = "temp_images"
 
-# Render de PNG suficientemente grande para que Word lo reduzca sin perder legibilidad.
-LABEL_IMAGE_WIDTH_PX = 412
-LABEL_IMAGE_HEIGHT_PX = 210
-
-# Tamaño final DENTRO de la plantilla Word real.
-WORD_LABEL_WIDTH_CM = 3.92
-WORD_LABEL_HEIGHT_CM = 2.00
+LABEL_WIDTH_MM = 48.0
+LABEL_HEIGHT_MM = 23.0
 
 PROCESS_STATUS_IDLE = "idle"
 PROCESS_STATUS_RUNNING = "running"

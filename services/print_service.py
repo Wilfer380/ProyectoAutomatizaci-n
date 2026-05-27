@@ -7,14 +7,16 @@ from PySide6.QtCore import QMarginsF, QRectF, QSizeF, Qt
 from PySide6.QtGui import QPageLayout, QPageSize, QPainter
 from PySide6.QtPrintSupport import QPrinter
 
+from services.driver_check import ensure_printer_driver
+from utils.constants import LABEL_HEIGHT_MM, LABEL_WIDTH_MM, TARGET_PRINTER_NAME
 from view_models.label_item_view_model import LabelItemViewModel
 
 
 @dataclass(frozen=True)
 class LabelPrintConfig:
-    printer_name: str = "SATO WS408"
-    label_width_mm: float = 48.0
-    label_height_mm: float = 23.0
+    printer_name: str = TARGET_PRINTER_NAME
+    label_width_mm: float = LABEL_WIDTH_MM
+    label_height_mm: float = LABEL_HEIGHT_MM
     margin_mm: float = 0.0
 
 
@@ -58,16 +60,22 @@ class PrintService:
         printer_factory: Callable[..., QPrinter] | None = None,
         painter_factory: Callable[[], QPainter] | None = None,
         renderer: LabelRenderer | None = None,
+        printer_names_provider: Callable[[], Sequence[str]] | None = None,
     ) -> None:
         self.config = config or LabelPrintConfig()
         self._printer_factory: Callable[..., QPrinter] = printer_factory or QPrinter
         self._painter_factory: Callable[[], QPainter] = painter_factory or QPainter
         self._renderer = renderer or LabelRenderer()
+        self._printer_names_provider = printer_names_provider
 
     def print_labels(self, items: Sequence[LabelItemViewModel]) -> None:
         if not items:
             raise ValueError("No hay etiquetas para imprimir.")
 
+        ensure_printer_driver(
+            self.config.printer_name,
+            printer_names_provider=self._printer_names_provider,
+        )
         printer = self._create_configured_printer()
         painter = self._painter_factory()
 

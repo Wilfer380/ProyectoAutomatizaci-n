@@ -55,7 +55,13 @@ def _launch_installer(source_root: Path) -> int:
             f"No se encontró el actualizador de la nueva versión.\n\nRuta esperada:\n{installer_exe}"
         )
         return 1
-    subprocess.Popen([str(installer_exe)], cwd=str(source_root))
+    try:
+        subprocess.Popen([str(installer_exe)], cwd=str(source_root))
+    except Exception as exc:
+        _show_error(
+            f"No se pudo abrir el instalador. Contactá a TI/informática.\n\n{exc}"
+        )
+        return 1
     return 0
 
 
@@ -66,7 +72,11 @@ def main() -> int:
 
     if latest_version_file.exists():
         latest_version = _read_version(latest_version_file)
-        installed_version = _read_version(installed_version_file) if installed_version_file.exists() else (0,)
+        installed_version = (
+            _read_version(installed_version_file)
+            if installed_version_file.exists()
+            else (0,)
+        )
         if latest_version > installed_version:
             root = Tk()
             root.withdraw()
@@ -86,7 +96,13 @@ def main() -> int:
         )
         return 1
 
-    subprocess.Popen([str(app_exe)], cwd=str(INSTALL_APP_DIR))
+    try:
+        subprocess.Popen([str(app_exe)], cwd=str(INSTALL_APP_DIR))
+    except Exception as exc:
+        _show_error(
+            f"No se pudo abrir la aplicación. Contactá a TI/informática.\n\n{exc}"
+        )
+        return 1
     return 0
 
 

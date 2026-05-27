@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QGraphicsScene,
     QGraphicsView,
     QHBoxLayout,
+    QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
@@ -42,9 +43,13 @@ class PreviewSubwindow(QDialog):
 
         self.btn_confirmar.clicked.connect(self.on_confirmar)
         self.btn_rehacer.clicked.connect(self.on_rehacer)
+        self.view_model.printFailed.connect(self.show_print_error)
 
     def on_confirmar(self):
         self.view_model.confirm()
 
     def on_rehacer(self):
         self.view_model.redo()
+
+    def show_print_error(self, message: str) -> None:
+        QMessageBox.critical(self, "No se pudo imprimir", message)

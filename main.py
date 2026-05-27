@@ -9,22 +9,18 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from ui.main_window import MainWindow
 from utils.config import ConfigManager
 from utils.constants import APP_NAME, APP_ORGANIZATION
-from utils.logger import install_global_exception_handlers, log_runtime_context, setup_logger
+from utils.logger import (
+    install_global_exception_handlers,
+    log_runtime_context,
+    setup_logger,
+)
 from utils.resources import resource_path
 from view_models.main_view_model import MainViewModel
 
 
 def _build_parser() -> ArgumentParser:
     parser = ArgumentParser(add_help=True)
-    parser.add_argument("--worker", action="store_true")
-    parser.add_argument("--worker-action", choices=("load-filters", "run-process"), default="")
     parser.add_argument("--excel", default="")
-    parser.add_argument("--word", default="")
-    parser.add_argument("--filter", dest="selected_filter", default="")
-    parser.add_argument("--printer", default="")
-    parser.add_argument("--simulate", action="store_true")
-    parser.add_argument("--working-directory", default="")
-    parser.add_argument("--output-directory", default="")
     parser.add_argument("--debug", action="store_true")
     return parser
 
@@ -58,11 +54,6 @@ def main() -> int:
     args, _ = _build_parser().parse_known_args()
     if args.debug:
         os.environ["AUTOMATIZACION_SAP_DEBUG"] = "1"
-    if args.worker:
-        from services.worker_process import worker_main
-
-        return worker_main(sys.argv[1:])
-
     logger = setup_logger(debug=args.debug)
     _set_windows_app_id()
     app = QApplication(sys.argv)

@@ -1,25 +1,26 @@
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
 import traceback
+from contextlib import suppress
+from importlib import import_module
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, RIGHT, X, Button, Frame, Label, Text, Tk, messagebox, ttk
+from tkinter import BOTH, END, RIGHT, X, Button, Frame, Label, Text, Tk, messagebox, ttk
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from deploy.paths_config_generadoretiquetassap import (
     APP_DISPLAY_NAME,
     APP_PAYLOAD_DIR_NAME,
-    ICON_ICO,
     INSTALL_APP_DIR,
     INSTALL_ROOT,
-    INSTALLER_EXE_NAME,
     LAUNCHER_EXE_NAME,
 )
 from utils.runtime import get_user_home_dir
+
+printer_driver_preflight = import_module("deploy.printer_driver_preflight")
 
 
 WEG_BLUE = "#003E7E"
@@ -35,7 +36,7 @@ def runtime_base_dir() -> Path:
 
 def bundled_resource_path(*parts: str) -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS).joinpath(*parts)
+        return Path(str(sys.__dict__["_MEIPASS"])).joinpath(*parts)
     return Path(__file__).resolve().parents[1].joinpath(*parts)
 
 
@@ -49,10 +50,8 @@ class InstallerWindow:
 
         icon = bundled_resource_path("assets", "app_icon.ico")
         if icon.exists():
-            try:
+            with suppress(Exception):
                 self.root.iconbitmap(str(icon))
-            except Exception:
-                pass
 
         self.source_dir = runtime_base_dir()
         self.payload_dir = self.source_dir / APP_PAYLOAD_DIR_NAME
@@ -81,25 +80,72 @@ class InstallerWindow:
         body = Frame(self.root, bg="white", padx=18, pady=16)
         body.pack(fill=BOTH, expand=True)
 
-        callout = Frame(body, bg=WEG_PALE, highlightbackground=WEG_YELLOW, highlightthickness=3, padx=14, pady=12)
+        callout = Frame(
+            body,
+            bg=WEG_PALE,
+            highlightbackground=WEG_YELLOW,
+            highlightthickness=3,
+            padx=14,
+            pady=12,
+        )
         callout.pack(fill=X)
-        Label(callout, text="Se instalará en:", bg=WEG_PALE, fg=WEG_BLUE, font=("Segoe UI", 11, "bold")).pack(anchor="w")
-        Label(callout, text=str(INSTALL_ROOT), bg=WEG_PALE, fg=WEG_BLUE, font=("Consolas", 15, "bold")).pack(anchor="w", pady=(4, 0))
-        Label(callout, text=f"Origen: {self.source_dir}", bg=WEG_PALE, fg="#555555", font=("Segoe UI", 9)).pack(anchor="w", pady=(8, 0))
+        Label(
+            callout,
+            text="Se instalará en:",
+            bg=WEG_PALE,
+            fg=WEG_BLUE,
+            font=("Segoe UI", 11, "bold"),
+        ).pack(anchor="w")
+        Label(
+            callout,
+            text=str(INSTALL_ROOT),
+            bg=WEG_PALE,
+            fg=WEG_BLUE,
+            font=("Consolas", 15, "bold"),
+        ).pack(anchor="w", pady=(4, 0))
+        Label(
+            callout,
+            text=f"Origen: {self.source_dir}",
+            bg=WEG_PALE,
+            fg="#555555",
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(8, 0))
 
         self.progress = ttk.Progressbar(body, mode="determinate", maximum=100)
         self.progress.pack(fill=X, pady=(16, 8))
 
-        self.status = Label(body, text="Listo para instalar.", bg="white", fg="#333333", font=("Segoe UI", 10, "bold"))
+        self.status = Label(
+            body,
+            text="Listo para instalar.",
+            bg="white",
+            fg="#333333",
+            font=("Segoe UI", 10, "bold"),
+        )
         self.status.pack(anchor="w")
 
-        self.log = Text(body, height=12, wrap="word", bg="#111111", fg="#E6E6E6", insertbackground="white")
+        self.log = Text(
+            body,
+            height=12,
+            wrap="word",
+            bg="#111111",
+            fg="#E6E6E6",
+            insertbackground="white",
+        )
         self.log.pack(fill=BOTH, expand=True, pady=(10, 0))
 
         buttons = Frame(body, bg="white")
         buttons.pack(fill=X, pady=(12, 0))
-        Button(buttons, text="Cancelar", command=self.root.destroy, width=14).pack(side=RIGHT, padx=(8, 0))
-        self.install_button = Button(buttons, text="▶ Instalar", command=self.install, width=16, bg=WEG_BLUE, fg="white")
+        Button(buttons, text="Cancelar", command=self.root.destroy, width=14).pack(
+            side=RIGHT, padx=(8, 0)
+        )
+        self.install_button = Button(
+            buttons,
+            text="▶ Instalar",
+            command=self.install,
+            width=16,
+            bg=WEG_BLUE,
+            fg="white",
+        )
         self.install_button.pack(side=RIGHT)
 
     def _log(self, message: str) -> None:
@@ -142,29 +188,38 @@ class InstallerWindow:
     def _launch_installed_app(self, launcher_target: Path) -> None:
         subprocess.Popen([str(launcher_target)], cwd=str(INSTALL_ROOT))
 
+    def _detect_driver_installers(self) -> list[str]:
+        drivers_dir = self.source_dir / "drivers"
+        if not drivers_dir.exists():
+            return []
+        return [str(path) for path in drivers_dir.glob("*SATO*") if path.is_file()]
+
+    def _warn_if_printer_driver_missing(self) -> None:
+        if printer_driver_preflight.is_printer_installed_for_installer():
+            self._log("Controlador SATO WS408 detectado en Windows.")
+            return
+        message = printer_driver_preflight.format_available_driver_artifacts(
+            self._detect_driver_installers()
+        )
+        self._log(message)
+        messagebox.showwarning(APP_DISPLAY_NAME, message)
+
     def _create_desktop_shortcut(self, launcher_target: Path) -> None:
         desktop = get_user_home_dir() / "Desktop"
-        shortcut_path = desktop / f"{APP_DISPLAY_NAME}.lnk"
-        try:
-            import win32com.client
-
-            shell = win32com.client.Dispatch("WScript.Shell")
-            shortcut = shell.CreateShortcut(str(shortcut_path))
-            shortcut.TargetPath = str(launcher_target)
-            shortcut.WorkingDirectory = str(INSTALL_ROOT)
-            shortcut.IconLocation = str(launcher_target)
-            shortcut.Description = APP_DISPLAY_NAME
-            shortcut.Save()
-        except Exception as exc:
-            self._log(f"No se pudo crear el acceso directo .lnk ({exc}). Se crea acceso .url de respaldo.")
-            shortcut_path = desktop / f"{APP_DISPLAY_NAME}.url"
-            shortcut_path.write_text(f"[InternetShortcut]\nURL=file:///{launcher_target.as_posix()}\n", encoding="utf-8")
+        desktop.mkdir(parents=True, exist_ok=True)
+        shortcut_path = desktop / f"{APP_DISPLAY_NAME}.url"
+        shortcut_path.write_text(
+            f"[InternetShortcut]\nURL=file:///{launcher_target.as_posix()}\n",
+            encoding="utf-8",
+        )
 
     def install(self) -> None:
         self.install_button.configure(state="disabled")
         try:
             self._set_progress(5, "Validando paquete de instalación...")
             self._validate_source()
+            self._set_progress(12, "Validando controlador SATO WS408...")
+            self._warn_if_printer_driver_missing()
             self._set_progress(25, f"Creando carpeta destino: {INSTALL_ROOT}")
             INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
             self._set_progress(45, f"Copiando aplicación a: {INSTALL_APP_DIR}")
@@ -177,7 +232,9 @@ class InstallerWindow:
             self._create_desktop_shortcut(launcher_target)
             self._set_progress(100, "Instalación completada correctamente.")
             self._log("Abriendo la aplicación instalada...")
-            self.status.configure(text="Instalación completada. Abriendo la aplicación...", fg="#166534")
+            self.status.configure(
+                text="Instalación completada. Abriendo la aplicación...", fg="#166534"
+            )
             self.root.update_idletasks()
             self._launch_installed_app(launcher_target)
             self.root.after(300, self.root.destroy)

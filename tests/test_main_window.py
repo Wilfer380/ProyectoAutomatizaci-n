@@ -1,6 +1,6 @@
 import sys
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from PySide6.QtWidgets import QApplication
 
@@ -34,10 +34,40 @@ class TestMainWindow(unittest.TestCase):
         self.view_model.select_file("C:/fake/path.xlsx")
         self.assertEqual(self.window.excel_path_edit.text(), "C:/fake/path.xlsx")
 
+    def test_excel_button_selects_file_in_view_model(self):
+        self.window.choose_excel_file = MagicMock(return_value="C:/fake/path.xlsx")
+
+        self.window.select_excel_button.click()
+
+        self.assertEqual(self.view_model.selected_file_path, "C:/fake/path.xlsx")
+        self.assertEqual(self.window.excel_path_edit.text(), "C:/fake/path.xlsx")
+
+    def test_manual_excel_path_updates_view_model(self):
+        self.window.excel_path_edit.setText("C:/manual/path.xlsx")
+        self.window.excel_path_edit.editingFinished.emit()
+
+        self.assertEqual(self.view_model.selected_file_path, "C:/manual/path.xlsx")
+
     def test_start_button_triggers_processing(self):
         self.view_model.process_file = MagicMock()
         self.window.start_button.click()
         self.view_model.process_file.assert_called_once()
+
+    def test_validate_configured_printer_shows_friendly_missing_driver_error(self):
+        self.window.show_error = MagicMock()
+        with patch("ui.main_window.check_printer_driver") as check_printer_driver:
+            check_printer_driver.return_value.installed = False
+            check_printer_driver.return_value.message = (
+                "Controlador SATO WS408 no detectado. Contactá a TI."
+            )
+
+            result = self.window.validate_configured_printer()
+
+        self.assertFalse(result)
+        self.window.show_error.assert_called_once()
+        self.assertEqual(
+            self.window.printer_state_chip.text(), "Impresora no detectada"
+        )
 
 
 if __name__ == "__main__":

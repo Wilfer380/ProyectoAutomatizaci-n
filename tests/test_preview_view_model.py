@@ -76,6 +76,22 @@ class TestPreviewViewModel(unittest.TestCase):
         self.assertTrue(completed_emitted)
         self.assertEqual(printed_items, items)
 
+    def test_confirm_emits_print_failed_when_callback_fails(self):
+        vm = PreviewViewModel(
+            print_callback=lambda _items: (_ for _ in ()).throw(
+                RuntimeError("driver missing")
+            )
+        )
+        failures = []
+        completed = []
+        vm.printFailed.connect(lambda message: failures.append(message))
+        vm.printCompleted.connect(lambda: completed.append(True))
+
+        vm.confirm()
+
+        self.assertEqual(failures, ["driver missing"])
+        self.assertEqual(completed, [])
+
     def test_redo_emits_signal(self):
         vm = PreviewViewModel()
 

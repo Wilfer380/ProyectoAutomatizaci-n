@@ -6,12 +6,8 @@ block_cipher = None
 
 hiddenimports = [
     "PIL._tkinter_finder",
-    "pythoncom",
-    "pywintypes",
-    "win32com",
-    "win32com.client",
-    "win32timezone",
-] + collect_submodules("PIL")
+    "PySide6.QtPrintSupport",
+] + collect_submodules("PIL") + collect_submodules("openpyxl")
 
 a = Analysis(
     ["main.py"],

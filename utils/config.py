@@ -17,7 +17,8 @@ class ConfigManager:
 
         data = json.loads(self.settings_path.read_text(encoding="utf-8"))
         data["excel_path"] = ""
-        data["word_template_path"] = ""
+        data.pop("word_template_path", None)
+        data.pop("save_word_copies", None)
         return AppSettings.from_dict(data)
 
     def save(self, settings: AppSettings) -> None:

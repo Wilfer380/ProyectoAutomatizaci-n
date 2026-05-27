@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from models.app_settings import AppSettings
+from services.driver_check import check_printer_driver
 from services.print_service import LabelPrintConfig, PrintService
 from ui.preview_subwindow import PreviewSubwindow
 from utils.constants import APP_NAME, TARGET_PRINTER_NAME
@@ -117,7 +118,7 @@ class MainWindow(QMainWindow):
         helper_label = QLabel(
             "Seleccioná la base Excel. "
             "El sistema genera una previsualización nativa de etiquetas 48x23 mm, "
-            "permite confirmar o rehacer ajustes y evita depender de plantillas Word."
+            "permite confirmar o rehacer ajustes y evita depender de plantillas externas."
         )
         helper_label.setObjectName("helperLabel")
         helper_label.setWordWrap(True)
@@ -193,9 +194,7 @@ class MainWindow(QMainWindow):
         line_edit.setPlaceholderText(placeholder)
         line_edit.setMinimumHeight(44)
 
-        button = QPushButton(
-            "Seleccionar Excel" if is_excel else "Seleccionar plantilla Word"
-        )
+        button = QPushButton("Seleccionar Excel")
         button.setObjectName("secondaryButton")
         button.setMinimumWidth(180)
         button.setMinimumHeight(44)
@@ -211,24 +210,13 @@ class MainWindow(QMainWindow):
         layout.addLayout(row_layout)
         layout.addWidget(hint_label)
 
-        if is_excel:
-            self.excel_path_edit = line_edit
-            self.select_excel_button = button
-            self.excel_hint_label = hint_label
-            self.select_excel_button.clicked.connect(self.select_excel_requested.emit)
-            self.excel_path_edit.editingFinished.connect(
-                lambda: self.excel_path_changed.emit(
-                    self.excel_path_edit.text().strip()
-                )
-            )
-        else:
-            self.word_path_edit = line_edit
-            self.select_word_button = button
-            self.word_hint_label = hint_label
-            self.select_word_button.clicked.connect(self.select_word_requested.emit)
-            self.word_path_edit.editingFinished.connect(
-                lambda: self.word_path_changed.emit(self.word_path_edit.text().strip())
-            )
+        self.excel_path_edit = line_edit
+        self.select_excel_button = button
+        self.excel_hint_label = hint_label
+        self.select_excel_button.clicked.connect(self.select_excel_requested.emit)
+        self.excel_path_edit.editingFinished.connect(
+            lambda: self.excel_path_changed.emit(self.excel_path_edit.text().strip())
+        )
 
         return container
 
@@ -567,8 +555,39 @@ class MainWindow(QMainWindow):
         view_model.errorOccurred.connect(
             lambda message: self.show_error("Error procesando Excel", message)
         )
+        self.select_excel_requested.connect(self._select_excel_for_view_model)
+        self.excel_path_changed.connect(view_model.select_file)
+        self.configure_printer_button.clicked.connect(self.validate_configured_printer)
         self.start_button.clicked.connect(view_model.process_file)
         self.start_button.setEnabled(True)
+
+    def _select_excel_for_view_model(self) -> None:
+        path = self.choose_excel_file()
+        if path and self.view_model is not None:
+            self.view_model.select_file(path)
+
+    def validate_configured_printer(self) -> bool:
+        printer_name = self.printer_name_edit.text().strip() or TARGET_PRINTER_NAME
+        status = check_printer_driver(printer_name)
+        if status.installed:
+            self.show_info(
+                "Impresora", f"Impresora detectada correctamente: {printer_name}"
+            )
+            self._set_chip_state(
+                self.printer_state_chip,
+                True,
+                f"Impresora: {printer_name}",
+                "Impresora pendiente",
+            )
+            return True
+        self.show_error("Controlador requerido", status.message)
+        self._set_chip_state(
+            self.printer_state_chip,
+            False,
+            f"Impresora: {printer_name}",
+            "Impresora no detectada",
+        )
+        return False
 
     def _open_preview_subwindow(self, label_items: list[object]) -> None:
         self.set_busy(False)
@@ -728,11 +747,10 @@ class MainWindow(QMainWindow):
             self.cancel_process_button.setVisible(True)
             self.cancel_process_button.setEnabled(True)
             self.set_status(
-                f"Bloque {block_index}/{total_blocks} listo. "
-                "Revisá/imprimí/guardá en Word y luego presioná Continuar."
+                f"Bloque {block_index}/{total_blocks} listo para revisión en vista previa."
             )
             self.append_log(
-                f"Esperando revisión manual del bloque {block_index}/{total_blocks}. Archivo Word: {document_path}"
+                f"Esperando revisión manual del bloque {block_index}/{total_blocks}."
             )
             return
 

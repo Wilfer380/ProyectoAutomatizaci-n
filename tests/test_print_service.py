@@ -5,6 +5,7 @@ from typing import cast
 from PySide6.QtGui import QPainter
 from PySide6.QtPrintSupport import QPrinter
 
+from services.driver_check import PrinterDriverMissingError
 from services.print_service import LabelPrintConfig, LabelRenderer, PrintService
 from view_models.label_item_view_model import LabelItemViewModel
 
@@ -84,6 +85,7 @@ class TestPrintService(unittest.TestCase):
             printer_factory=cast(Callable[..., QPrinter], lambda *_args: fake_printer),
             painter_factory=cast(Callable[[], QPainter], lambda: fake_painter),
             renderer=cast(LabelRenderer, fake_renderer),
+            printer_names_provider=lambda: ["SATO WS408"],
         )
 
         service.print_labels([self._make_item(), self._make_item("A-002")])
@@ -100,10 +102,22 @@ class TestPrintService(unittest.TestCase):
         service = PrintService(
             printer_factory=cast(Callable[..., QPrinter], lambda *_args: FakePrinter()),
             painter_factory=cast(Callable[[], QPainter], FakePainter),
+            printer_names_provider=lambda: ["SATO WS408"],
         )
 
         with self.assertRaises(ValueError):
             service.print_labels([])
+
+    def test_missing_driver_is_rejected_before_printing(self):
+        service = PrintService(
+            LabelPrintConfig(printer_name="SATO WS408"),
+            printer_factory=cast(Callable[..., QPrinter], lambda *_args: FakePrinter()),
+            painter_factory=cast(Callable[[], QPainter], FakePainter),
+            printer_names_provider=lambda: ["Microsoft Print to PDF"],
+        )
+
+        with self.assertRaises(PrinterDriverMissingError):
+            service.print_labels([self._make_item()])
 
     def test_renderer_draws_asset_text(self):
         item = self._make_item()
