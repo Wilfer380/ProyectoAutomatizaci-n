@@ -48,8 +48,11 @@ class TestPreviewViewModel(unittest.TestCase):
         vm.previous_page()  # Should not go out of bounds
         self.assertEqual(vm.current_page_index, 0)
 
-    def test_confirm_emits_print_signals(self):
-        vm = PreviewViewModel()
+    def test_confirm_emits_print_signals_and_prints_current_items(self):
+        printed_items = []
+        vm = PreviewViewModel(print_callback=lambda items: printed_items.extend(items))
+        items = [LabelItemViewModel(), LabelItemViewModel()]
+        vm.set_items(items)
 
         started_emitted = False
 
@@ -71,6 +74,7 @@ class TestPreviewViewModel(unittest.TestCase):
 
         self.assertTrue(started_emitted)
         self.assertTrue(completed_emitted)
+        self.assertEqual(printed_items, items)
 
     def test_redo_emits_signal(self):
         vm = PreviewViewModel()

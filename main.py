@@ -6,12 +6,12 @@ from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
-from controllers.main_controller import MainController
 from ui.main_window import MainWindow
 from utils.config import ConfigManager
 from utils.constants import APP_NAME, APP_ORGANIZATION
 from utils.logger import install_global_exception_handlers, log_runtime_context, setup_logger
 from utils.resources import resource_path
+from view_models.main_view_model import MainViewModel
 
 
 def _build_parser() -> ArgumentParser:
@@ -85,11 +85,9 @@ def main() -> int:
         settings = config_manager.load()
 
         logger.info("Construyendo interfaz principal.")
-        window = MainWindow(settings)
+        window = MainWindow(settings, MainViewModel())
         if not app_icon.isNull():
             window.setWindowIcon(app_icon)
-        window.controller = MainController(window, config_manager, logger)
-        app.aboutToQuit.connect(window.controller.cleanup_on_exit)
         window.show()
         logger.info("Interfaz cargada correctamente.")
 

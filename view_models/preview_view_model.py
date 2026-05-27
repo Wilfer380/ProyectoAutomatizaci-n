@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from PySide6.QtCore import QObject, Signal
 
 
@@ -7,10 +9,11 @@ class PreviewViewModel(QObject):
     printCompleted = Signal()
     redoRequested = Signal()
 
-    def __init__(self, parent=None):
+    def __init__(self, print_callback: Callable[[list], None] | None = None, parent=None):
         super().__init__(parent)
         self._label_items = []
         self._current_page_index = 0
+        self._print_callback = print_callback
 
     @property
     def label_items(self):
@@ -35,7 +38,8 @@ class PreviewViewModel(QObject):
 
     def confirm(self):
         self.printStarted.emit()
-        # Mocking the print process completion for now
+        if self._print_callback is not None:
+            self._print_callback(self._label_items)
         self.printCompleted.emit()
 
     def redo(self):

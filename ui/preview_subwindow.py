@@ -20,7 +20,9 @@ class PreviewSubwindow(QDialog):
         layout = QVBoxLayout(self)
 
         self.scene = QGraphicsScene(self)
-        self.scene.setSceneRect(0, 0, 480, 230)  # 48x23mm at 10 px/mm logical preview scale.
+        self.scene.setSceneRect(
+            0, 0, 480, 230
+        )  # 48x23mm at 10 px/mm logical preview scale.
         self.view = QGraphicsView(self.scene)
         self.view.setMinimumSize(520, 270)
         self.scene.addRect(self.scene.sceneRect())

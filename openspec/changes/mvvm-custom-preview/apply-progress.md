@@ -20,6 +20,10 @@
 - [x] **Create Preview Subwindow**: Created `ui/preview_subwindow.py` as a `QDialog` with a `QGraphicsScene`/`QGraphicsView` using a logical 48x23mm preview scale. Added `Confirmar` and `Rehacer` buttons connected to `PreviewViewModel.confirm()` and `PreviewViewModel.redo()`.
 - [x] **Update Main Window View**: Updated `ui/main_window.py` to accept a `MainViewModel`, bind Excel/progress/processing signals, remove Word UI controls from the new MVVM path, and keep the main UI responsive while processing runs through the ViewModel worker.
 
+### PR 4: Direct Print Engine and Integration
+- [x] **Implement Direct Print Engine**: Created `services/print_service.py` with `LabelPrintConfig`, `LabelRenderer`, and `PrintService`. The printer is configured as `SATO WS408`, with exact `QPageSize(QSizeF(48.0, 23.0), QPageSize.Unit.Millimeter)` and zero margins.
+- [x] **Finalize End-to-End Integration**: Updated `PreviewViewModel.confirm()` to call an injected print callback and wired `MainWindow` preview creation to `PrintService.print_labels()`. Updated `main.py` to start the MVVM path with `MainViewModel()` instead of the legacy controller.
+
 ## TDD Cycle Evidence
 | Task | Target File | RED (Failing Test) | GREEN (Passing Test) | REFACTOR |
 |---|---|---|---|---|
@@ -28,15 +32,15 @@
 | PreviewViewModel | `view_models/preview_view_model.py` | `tests/test_preview_view_model.py` failing on missing attributes | Implemented `confirm`, `redo`, navigation, & signals | Organized state into properties |
 | Preview Subwindow | `ui/preview_subwindow.py` | `tests/test_preview_subwindow.py` failing on missing UI | Implemented modal preview dialog and connected action buttons | Added 48x23 logical preview scene |
 | Main Window MVVM Binding | `ui/main_window.py` | `tests/test_main_window.py` failing on legacy Word UI and constructor | Added optional `MainViewModel` binding and removed Word controls from the MVVM UI path | Fixed test app initialization to use `QApplication` instead of `QGuiApplication` |
+| Direct Print Service | `services/print_service.py` | `tests/test_print_service.py` failing before service existed | Implemented `QPrinter` configuration, print callback integration, and `QPainter` label rendering | Added fake printer/painter tests so no real printer is required during CI |
 
 ## Deviations from Design
 - `AssetRecord` model was updated to include an `image` field to carry the `QImage` as specified by the prompt.
 - `MainViewModel` worker logic was updated to emit data models (`records`) instead of view models, and the main thread instantiates the `LabelItemViewModel` to prevent cross-thread object passing which caused a C++ segfault.
 
 ## Remaining Tasks
-- Implement Direct Print Engine
-- Finalize End-to-End Integration
 - Add SATO WS408 driver detection and installer/launcher robustness improvements
+- Remove or rewrite stale legacy `controllers/`, `process_service.py`, and worker paths that still reference the deleted Word service
 
 ## Workload / PR Boundary
-- PR 3 is complete. The next step is PR 4 (Direct Print Engine and Integration), followed by PR 5 (UI/UX hardening, driver detection, installer/launcher robustness).
+- PR 4 is complete. The next step is PR 5 (UI/UX hardening, driver detection, installer/launcher robustness, and legacy path cleanup).

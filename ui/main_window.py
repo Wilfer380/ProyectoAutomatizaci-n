@@ -25,9 +25,12 @@ from PySide6.QtWidgets import (
 )
 
 from models.app_settings import AppSettings
+from services.print_service import LabelPrintConfig, PrintService
+from ui.preview_subwindow import PreviewSubwindow
 from utils.constants import APP_NAME, TARGET_PRINTER_NAME
 from utils.runtime import get_user_home_dir
 from view_models.main_view_model import MainViewModel
+from view_models.preview_view_model import PreviewViewModel
 
 
 class FilterComboBox(QComboBox):
@@ -49,7 +52,9 @@ class MainWindow(QMainWindow):
     cancel_process_requested = Signal()
     printer_config_requested = Signal()
 
-    def __init__(self, settings: AppSettings, view_model: MainViewModel | None = None) -> None:
+    def __init__(
+        self, settings: AppSettings, view_model: MainViewModel | None = None
+    ) -> None:
         super().__init__()
         self._settings = settings
         self.view_model = view_model
@@ -70,7 +75,7 @@ class MainWindow(QMainWindow):
 
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
-        scroll_area.setFrameShape(QFrame.NoFrame)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         self.setCentralWidget(scroll_area)
 
         central_widget = QWidget()
@@ -103,7 +108,9 @@ class MainWindow(QMainWindow):
         title_label = QLabel(APP_NAME)
         title_label.setObjectName("titleLabel")
 
-        subtitle_label = QLabel("Automatización de generación y previsualización de etiquetas desde Excel")
+        subtitle_label = QLabel(
+            "Automatización de generación y previsualización de etiquetas desde Excel"
+        )
         subtitle_label.setObjectName("subtitleLabel")
         subtitle_label.setWordWrap(True)
 
@@ -139,7 +146,7 @@ class MainWindow(QMainWindow):
         chip = QLabel(text)
         chip.setObjectName("statusChip")
         chip.setProperty("chipState", "warning")
-        chip.setAlignment(Qt.AlignCenter)
+        chip.setAlignment(Qt.AlignmentFlag.AlignCenter)
         chip.setMinimumHeight(32)
         return chip
 
@@ -186,7 +193,9 @@ class MainWindow(QMainWindow):
         line_edit.setPlaceholderText(placeholder)
         line_edit.setMinimumHeight(44)
 
-        button = QPushButton("Seleccionar Excel" if is_excel else "Seleccionar plantilla Word")
+        button = QPushButton(
+            "Seleccionar Excel" if is_excel else "Seleccionar plantilla Word"
+        )
         button.setObjectName("secondaryButton")
         button.setMinimumWidth(180)
         button.setMinimumHeight(44)
@@ -208,7 +217,9 @@ class MainWindow(QMainWindow):
             self.excel_hint_label = hint_label
             self.select_excel_button.clicked.connect(self.select_excel_requested.emit)
             self.excel_path_edit.editingFinished.connect(
-                lambda: self.excel_path_changed.emit(self.excel_path_edit.text().strip())
+                lambda: self.excel_path_changed.emit(
+                    self.excel_path_edit.text().strip()
+                )
             )
         else:
             self.word_path_edit = line_edit
@@ -242,7 +253,7 @@ class MainWindow(QMainWindow):
         self.filter_combo.setPlaceholderText("Seleccione un filtro")
         self.filter_combo.setMinimumHeight(44)
         self.filter_combo.setMaxVisibleItems(20)
-        self.filter_combo.view().setTextElideMode(Qt.ElideNone)
+        self.filter_combo.view().setTextElideMode(Qt.TextElideMode.ElideNone)
 
         self.refresh_filters_button = QPushButton("Actualizar filtros")
         self.refresh_filters_button.setObjectName("secondaryButton")
@@ -275,7 +286,9 @@ class MainWindow(QMainWindow):
         self.configure_printer_button.setObjectName("secondaryButton")
         self.configure_printer_button.setMinimumWidth(150)
         self.configure_printer_button.setMinimumHeight(44)
-        self.configure_printer_button.clicked.connect(self.printer_config_requested.emit)
+        self.configure_printer_button.clicked.connect(
+            self.printer_config_requested.emit
+        )
 
         printer_row.addWidget(self.printer_name_edit, stretch=1)
         printer_row.addWidget(self.configure_printer_button)
@@ -320,7 +333,9 @@ class MainWindow(QMainWindow):
         self.status_label.setObjectName("statusTitle")
         self.records_label = QLabel("Registros detectados: 0")
         self.records_label.setObjectName("statusMeta")
-        self.records_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.records_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         info_layout.addWidget(self.status_label, stretch=1)
         info_layout.addWidget(self.records_label)
@@ -342,7 +357,9 @@ class MainWindow(QMainWindow):
 
         self.log_output = QPlainTextEdit()
         self.log_output.setReadOnly(True)
-        self.log_output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.log_output.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         layout.addWidget(self.log_output)
         return group
@@ -547,16 +564,27 @@ class MainWindow(QMainWindow):
         view_model.progressChanged.connect(self.set_progress)
         view_model.processingStarted.connect(lambda: self.set_busy(True))
         view_model.processingFinished.connect(self._open_preview_subwindow)
-        view_model.errorOccurred.connect(lambda message: self.show_error("Error procesando Excel", message))
+        view_model.errorOccurred.connect(
+            lambda message: self.show_error("Error procesando Excel", message)
+        )
         self.start_button.clicked.connect(view_model.process_file)
         self.start_button.setEnabled(True)
 
-    def _open_preview_subwindow(self, _label_items: list[object]) -> None:
+    def _open_preview_subwindow(self, label_items: list[object]) -> None:
         self.set_busy(False)
+        printer_name = self.printer_name_edit.text().strip() or TARGET_PRINTER_NAME
+        print_service = PrintService(LabelPrintConfig(printer_name=printer_name))
+        preview_view_model = PreviewViewModel(print_callback=print_service.print_labels)
+        preview_view_model.set_items(label_items)
+        self.preview_dialog = PreviewSubwindow(preview_view_model)
+        self.preview_dialog.setModal(True)
+        self.preview_dialog.open()
         self.set_status("Etiquetas generadas. Vista previa lista para revisión.")
 
     def choose_excel_file(self, start_dir: str = "") -> str:
-        start_dir = self._resolve_dialog_directory(start_dir, self.excel_path_edit.text())
+        start_dir = self._resolve_dialog_directory(
+            start_dir, self.excel_path_edit.text()
+        )
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Seleccionar archivo Excel",
@@ -566,14 +594,7 @@ class MainWindow(QMainWindow):
         return path
 
     def choose_word_file(self, start_dir: str = "") -> str:
-        start_dir = self._resolve_dialog_directory(start_dir, self.word_path_edit.text())
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Seleccionar plantilla Word",
-            start_dir,
-            "Word (*.docx *.docm *.doc)",
-        )
-        return path
+        return ""
 
     def _resolve_dialog_directory(self, preferred_dir: str, current_path: str) -> str:
         if current_path:
@@ -586,11 +607,15 @@ class MainWindow(QMainWindow):
             if preferred.exists():
                 return str(preferred)
 
-        downloads = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+        downloads = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DownloadLocation
+        )
         if downloads:
             return downloads
 
-        documents = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        documents = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.DocumentsLocation
+        )
         if documents:
             return documents
 
@@ -598,11 +623,12 @@ class MainWindow(QMainWindow):
 
     def set_excel_path(self, path: str) -> None:
         self.excel_path_edit.setText(path)
-        self._set_chip_state(self.excel_state_chip, bool(path), "Excel cargado", "Excel pendiente")
+        self._set_chip_state(
+            self.excel_state_chip, bool(path), "Excel cargado", "Excel pendiente"
+        )
 
     def set_word_path(self, path: str) -> None:
-        self.word_path_edit.setText(path)
-        self._set_chip_state(self.word_state_chip, bool(path), "Word cargado", "Word pendiente")
+        return
 
     def set_printer_name(self, printer_name: str) -> None:
         self.printer_name_edit.setText(printer_name)
@@ -613,7 +639,9 @@ class MainWindow(QMainWindow):
             "Impresora pendiente",
         )
 
-    def _set_chip_state(self, chip: QLabel, ready: bool, ready_text: str, pending_text: str) -> None:
+    def _set_chip_state(
+        self, chip: QLabel, ready: bool, ready_text: str, pending_text: str
+    ) -> None:
         chip.setText(ready_text if ready else pending_text)
         chip.setProperty("chipState", "ready" if ready else "warning")
         self.style().unpolish(chip)
@@ -731,10 +759,10 @@ class MainWindow(QMainWindow):
             "Guardado no detectado",
             f"No detecté un guardado/modificación posterior en el bloque:\n{document_path}\n\n"
             "¿Querés continuar de todos modos?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        return confirm == QMessageBox.Yes
+        return confirm == QMessageBox.StandardButton.Yes
 
     def file_was_saved_after(self, document_path: str, baseline_mtime_ns: int) -> bool:
         try:
