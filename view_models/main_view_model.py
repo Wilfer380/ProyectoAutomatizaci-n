@@ -33,6 +33,7 @@ class MainViewModel(QObject):
         self._is_processing = False
         self._progress_value = 0
         self.worker = None
+        self._pending_items = []
 
     @property
     def selected_file_path(self):
@@ -67,6 +68,7 @@ class MainViewModel(QObject):
         self.worker.setParent(self)
         self.worker.dataReady.connect(self._on_worker_data_ready)
         self.worker.error.connect(self._on_worker_error)
+        self.worker.finished.connect(self._on_worker_finished)
         self.worker.finished.connect(self.worker.deleteLater)
 
         # Simulate some progress before we know it's done
@@ -84,14 +86,17 @@ class MainViewModel(QObject):
             vm.image_data = record.image
             items.append(vm)
 
+        self._pending_items = items
+
+    def _on_worker_finished(self):
         self._is_processing = False
-        self.set_progress(100)
-        self.processingFinished.emit(items)
-        # worker is deleted by its finished signal
+        if self._pending_items:
+            self.set_progress(100)
+            self.processingFinished.emit(self._pending_items)
+        self._pending_items = []
         self.worker = None
 
     def _on_worker_error(self, err_msg):
+        self._pending_items = []
         self._is_processing = False
         self.errorOccurred.emit(err_msg)
-        # worker is deleted by its finished signal
-        self.worker = None

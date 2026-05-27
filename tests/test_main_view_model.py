@@ -1,11 +1,14 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from PySide6.QtCore import QObject, QEventLoop, QTimer
-from view_models.main_view_model import MainViewModel
-from models.asset_record import AssetRecord
-from PySide6.QtGui import QImage, QGuiApplication
 
-app = QGuiApplication.instance() or QGuiApplication([])
+from PySide6.QtCore import QObject, QEventLoop, QTimer
+from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QApplication
+
+from models.asset_record import AssetRecord
+from view_models.main_view_model import MainViewModel
+
+app = QApplication.instance() or QApplication([])
 
 
 class TestMainViewModel(unittest.TestCase):

@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from models.app_settings import AppSettings
 from utils.constants import APP_NAME, TARGET_PRINTER_NAME
 from utils.runtime import get_user_home_dir
+from view_models.main_view_model import MainViewModel
 
 
 class FilterComboBox(QComboBox):
@@ -48,11 +49,14 @@ class MainWindow(QMainWindow):
     cancel_process_requested = Signal()
     printer_config_requested = Signal()
 
-    def __init__(self, settings: AppSettings) -> None:
+    def __init__(self, settings: AppSettings, view_model: MainViewModel | None = None) -> None:
         super().__init__()
         self._settings = settings
+        self.view_model = view_model
         self._build_ui()
         self._apply_settings()
+        if self.view_model is not None:
+            self._bind_view_model(self.view_model)
 
     def _build_ui(self) -> None:
         self.setWindowTitle(APP_NAME)
@@ -99,14 +103,14 @@ class MainWindow(QMainWindow):
         title_label = QLabel(APP_NAME)
         title_label.setObjectName("titleLabel")
 
-        subtitle_label = QLabel("Automatización de generación e impresión de etiquetas desde Excel y Word")
+        subtitle_label = QLabel("Automatización de generación y previsualización de etiquetas desde Excel")
         subtitle_label.setObjectName("subtitleLabel")
         subtitle_label.setWordWrap(True)
 
         helper_label = QLabel(
-            "Seleccioná la base Excel, la plantilla Word y el filtro. "
-            "El sistema procesa en cascada bloques de 27 etiquetas sobre copias de Word. "
-            "Cada bloque se abre para ajuste, impresión manual y guardado antes de continuar."
+            "Seleccioná la base Excel. "
+            "El sistema genera una previsualización nativa de etiquetas 48x23 mm, "
+            "permite confirmar o rehacer ajustes y evita depender de plantillas Word."
         )
         helper_label.setObjectName("helperLabel")
         helper_label.setWordWrap(True)
@@ -124,11 +128,9 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         self.excel_state_chip = self._create_chip("Excel pendiente")
-        self.word_state_chip = self._create_chip("Word pendiente")
         self.printer_state_chip = self._create_chip("Impresora pendiente")
 
         layout.addWidget(self.excel_state_chip)
-        layout.addWidget(self.word_state_chip)
         layout.addWidget(self.printer_state_chip)
         layout.addStretch(1)
         return frame
@@ -156,14 +158,6 @@ class MainWindow(QMainWindow):
             )
         )
 
-        layout.addWidget(
-            self._build_labeled_field(
-                "Plantilla Word",
-                "Seleccione la plantilla de impresión Word",
-                "La plantilla se usa como base; nunca se modifica el original, solo copias por bloque.",
-                is_excel=False,
-            )
-        )
         return group
 
     def _build_labeled_field(
@@ -289,7 +283,7 @@ class MainWindow(QMainWindow):
         printer_layout.addWidget(printer_title)
         printer_layout.addLayout(printer_row)
 
-        self.start_button = QPushButton("Generar e imprimir")
+        self.start_button = QPushButton("Generar etiquetas")
         self.start_button.setObjectName("primaryButton")
         self.start_button.setMinimumHeight(48)
         self.start_button.setEnabled(False)
@@ -545,9 +539,21 @@ class MainWindow(QMainWindow):
 
     def _apply_settings(self) -> None:
         self.set_excel_path("")
-        self.set_word_path("")
         self.set_printer_name(self._settings.printer_name or TARGET_PRINTER_NAME)
         self.set_selected_filter(self._settings.selected_filter)
+
+    def _bind_view_model(self, view_model: MainViewModel) -> None:
+        view_model.fileSelected.connect(self.set_excel_path)
+        view_model.progressChanged.connect(self.set_progress)
+        view_model.processingStarted.connect(lambda: self.set_busy(True))
+        view_model.processingFinished.connect(self._open_preview_subwindow)
+        view_model.errorOccurred.connect(lambda message: self.show_error("Error procesando Excel", message))
+        self.start_button.clicked.connect(view_model.process_file)
+        self.start_button.setEnabled(True)
+
+    def _open_preview_subwindow(self, _label_items: list[object]) -> None:
+        self.set_busy(False)
+        self.set_status("Etiquetas generadas. Vista previa lista para revisión.")
 
     def choose_excel_file(self, start_dir: str = "") -> str:
         start_dir = self._resolve_dialog_directory(start_dir, self.excel_path_edit.text())
@@ -673,7 +679,6 @@ class MainWindow(QMainWindow):
 
     def set_busy(self, busy: bool) -> None:
         self.select_excel_button.setEnabled(not busy)
-        self.select_word_button.setEnabled(not busy)
         self.refresh_filters_button.setEnabled(not busy)
         self.configure_printer_button.setEnabled(not busy)
         self.simulate_button.setEnabled(False)
