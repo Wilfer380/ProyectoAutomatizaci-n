@@ -44,6 +44,13 @@ class TestMainWindow(unittest.TestCase):
         self.assertEqual(self.view_model.selected_file_path, "C:/fake/path.xlsx")
         self.assertEqual(self.window.excel_path_edit.text(), "C:/fake/path.xlsx")
 
+    def test_excel_file_dialog_only_offers_supported_formats(self):
+        with patch("ui.main_window.QFileDialog.getOpenFileName", return_value=("", "")) as chooser:
+            self.window.choose_excel_file()
+
+        _, _, _, file_filter = chooser.call_args.args
+        self.assertEqual(file_filter, "Excel (*.xlsx *.xlsm)")
+
     def test_manual_excel_path_updates_view_model(self):
         self.view_model._load_records_and_filters = MagicMock()
         self.window.excel_path_edit.setText("C:/manual/path.xlsx")

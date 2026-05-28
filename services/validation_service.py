@@ -39,7 +39,7 @@ class ValidationService:
         path = Path(excel_path)
         if not path.exists():
             raise ValidationError("El archivo Excel no existe.")
-        if path.suffix.lower() not in {".xlsx", ".xlsm", ".xls"}:
+        if path.suffix.lower() not in {".xlsx", ".xlsm"}:
             raise ValidationError("El archivo Excel no tiene una extensión válida.")
         self._validate_file_access(path)
         return path

@@ -643,7 +643,7 @@ class MainWindow(QMainWindow):
             self,
             "Seleccionar archivo Excel",
             start_dir,
-            "Excel (*.xlsx *.xlsm *.xls)",
+            "Excel (*.xlsx *.xlsm)",
         )
         return path
 

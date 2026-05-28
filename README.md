@@ -25,7 +25,7 @@ La documentación técnica y operativa bilingüe está en [`docs/README.md`](doc
 |---|---|
 | Sistema | Windows |
 | Python | 3.11 o superior recomendado |
-| Excel fuente | Archivo `.xlsx/.xlsm/.xls` con hoja `Hoja1` y columnas esperadas |
+| Excel fuente | Archivo `.xlsx/.xlsm` con hoja `Hoja1` y columnas esperadas |
 | Impresora | **SATO WS408** instalada en Windows con ese nombre exacto |
 | Driver | Controlador/Printer Utility de **SATO WS4** instalado por TI/informática si el usuario no tiene permisos |
 
