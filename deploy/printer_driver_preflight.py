@@ -10,6 +10,8 @@ DRIVER_GUIDANCE = (
     "Para imprimir etiquetas reales, este computador necesita el controlador/Printer Utility "
     "de SATO WS4 instalado y la impresora registrada en Windows con el nombre exacto "
     f"'{TARGET_PRINTER_NAME}'.\n\n"
+    "Configuración de referencia: stock 48 mm x 23 mm, 203 DPI, sin escalado "
+    "automático, sensor/gap calibrado y cola de impresión sin trabajos pendientes.\n\n"
     "Si no tenés permisos de instalación o el instalador del controlador falla, contactá a TI "
     "o al departamento de informática."
 )

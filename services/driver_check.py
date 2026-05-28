@@ -19,6 +19,9 @@ def missing_driver_message(printer_name: str = TARGET_PRINTER_NAME) -> str:
         f"Controlador {printer_name} no detectado.\n\n"
         "Instalá el controlador/Printer Utility de SATO WS4 en este computador "
         "y verificá que Windows muestre la impresora con ese nombre exacto.\n\n"
+        "Configuración esperada para producción: cola 'SATO WS408', etiqueta "
+        "48 mm x 23 mm, resolución 203 DPI, sin escalado automático y sensor "
+        "de etiquetas calibrado.\n\n"
         "Si no tenés permisos o el instalador no funciona, contactá a TI o al "
         "departamento de informática para que instalen y configuren la impresora."
     )

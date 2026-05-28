@@ -25,5 +25,6 @@ Los diagramas están guardados como archivos Mermaid para que GitHub o herramien
 | [`filter-label-checklist-flow.mmd`](shared/diagrams/filter-label-checklist-flow.mmd) | Filter and per-label checklist selection. |
 | [`preview-approval-state.mmd`](shared/diagrams/preview-approval-state.mmd) | Preview acceptance/rejection state machine. |
 | [`sato-print-pipeline.mmd`](shared/diagrams/sato-print-pipeline.mmd) | SATO WS408 print pipeline. |
+| [`printer-control-boundary.mmd`](shared/diagrams/printer-control-boundary.mmd) | Boundary between application control and machine/driver control. |
 | [`error-handling-boundaries.mmd`](shared/diagrams/error-handling-boundaries.mmd) | User-facing error boundaries. |
 | [`deployment-driver-preflight.mmd`](shared/diagrams/deployment-driver-preflight.mmd) | Installer and printer-driver preflight. |

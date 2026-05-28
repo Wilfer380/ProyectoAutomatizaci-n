@@ -112,6 +112,10 @@ Printing uses `QPrinter` and `QPainter`, with no Word or external application. E
 
 Diagram: [`../shared/diagrams/sato-print-pipeline.mmd`](../shared/diagrams/sato-print-pipeline.mmd)
 
+For machine support, driver setup, calibration, spooler checks, and physical testing, see: [`09-sato-print-setup-guide.md`](09-sato-print-setup-guide.md).
+
+App/machine boundary diagram: [`../shared/diagrams/printer-control-boundary.mmd`](../shared/diagrams/printer-control-boundary.mmd)
+
 ## Decisions and rationale
 
 | Decision | Rationale |
@@ -142,6 +146,7 @@ Diagram: [`../shared/diagrams/sato-print-pipeline.mmd`](../shared/diagrams/sato-
 | Missing or invalid Excel | Show a friendly error and stop. |
 | No records | Do not print; inform that no labels are available. |
 | Missing SATO driver | Ask the user to install/configure `SATO WS408` or contact IT. |
+| Preview correct but paper shifted | Check driver, 48x23 stock, sensor, calibration, and spooler. |
 | Print startup failure | Show the error and allow retry. |
 | Unexpected exception | Save technical detail to logs and show a safe message. |
 
@@ -182,5 +187,6 @@ Review checklist:
 | Printer is not detected | Driver missing or printer name differs. | Install/configure `SATO WS408` through IT/support. |
 | Excel loads no filters | `Seccion` column is missing or empty. | Check `Hoja1` and headers. |
 | Label preview is empty | Missing asset data or incorrectly anchored image. | Check the Excel row. |
-| Batch output drifts | Driver/configuration changed. | Keep `separate_jobs=True` and validate on the real SATO printer. |
+| Batch output drifts | Driver/configuration changed. | Keep `separate_jobs=True`, clear queue, and validate stock/calibration. |
 | Preview differs from print | Renderer or DPI changed. | Check `LabelRenderer` and `LabelPrintConfig`. |
+| Only one machine fails | Local driver/Windows configuration. | Use [`09-sato-print-setup-guide.md`](09-sato-print-setup-guide.md). |
