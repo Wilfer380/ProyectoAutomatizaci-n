@@ -124,6 +124,7 @@ class MainController:
         self._current_total_blocks: int | None = None
         self._current_block_file = ""
         self._current_block_baseline_mtime_ns = 0
+        self._manual_review_service: WordService | None = None
 
         self._bind_events()
         self._bind_worker_events()
@@ -136,12 +137,11 @@ class MainController:
             if self.worker_client.is_running():
                 self.logger.info("Hay un proceso secundario activo al cerrar la aplicación.")
             self.worker_client.shutdown()
-
             excel_service = self.process_service.excel_service
-            if excel_service.excel_app is not None or excel_service.workbook is not None:
-                self.logger.info("Se detectó una instancia propia de Excel abierta al cerrar la aplicación.")
+            if excel_service.workbook is not None:
+                self.logger.info("Se detectó un libro Excel headless abierto al cerrar la aplicación.")
             else:
-                self.logger.info("No había una instancia propia de Excel abierta al cerrar la aplicación.")
+                self.logger.info("No había un libro Excel headless abierto al cerrar la aplicación.")
             self.process_service.excel_service.close(save_changes=False)
             self.process_service.word_service.close(save_changes=False)
             self.logger.info("Limpieza de recursos al cerrar la aplicación completada.")
@@ -392,8 +392,6 @@ class MainController:
             self.validation_service.validate_word_file(self.settings.word_template_path)
             self.settings.selected_filter = self.window.selected_filter()
             self.validation_service.validate_selected_filter(self.settings.selected_filter)
-            if not simulate:
-                self.validation_service.validate_printer_installed(self.settings.printer_name)
             self._save_settings()
         except ValidationError as error:
             self.logger.warning("Validación fallida antes de iniciar proceso: %s", error)
@@ -438,11 +436,8 @@ class MainController:
 
     def _open_manual_review_document(self, document_path: str) -> None:
         try:
-            review_service = WordService()
-            review_service.open(document_path, visible=True)
-            review_service.show_to_user()
-            review_service.release_to_user()
-            self.logger.info("Documento Word abierto con COM para revisión manual: %s", document_path)
+            os.startfile(document_path)
+            self.logger.info("Documento Word abierto para revisión manual con la aplicación asociada: %s", document_path)
         except Exception:
             self.logger.exception("No se pudo abrir el documento Word para revisión manual: %s", document_path)
             try:

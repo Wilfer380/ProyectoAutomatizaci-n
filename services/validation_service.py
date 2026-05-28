@@ -3,6 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 
+try:
+    from docx import Document
+except ImportError:  # pragma: no cover
+    Document = None
+
 from utils.constants import (
     EXCEL_SHEET_LABEL,
     EXCEL_SHEET_SOURCE,
@@ -80,6 +85,37 @@ class ValidationService:
         missing = [header for header in SOURCE_HEADERS.values() if header not in headers]
         if missing:
             raise ValidationError(f"No se encontraron las columnas requeridas: {', '.join(missing)}.")
+
+    def validate_word_template_placeholders(self, word_path: str | Path, expected_count: int = 27) -> None:
+        path = Path(word_path)
+        if Document is None:
+            raise ValidationError("No se pudo inspeccionar la plantilla Word porque python-docx no está instalado.")
+
+        try:
+            doc = Document(str(path))
+        except Exception as exc:
+            raise ValidationError(f"No se pudo abrir la plantilla Word '{path}' para validar sus placeholders.") from exc
+
+        xml_text = self._collect_docx_text(doc)
+
+        missing = [f"<img{index}>" for index in range(1, expected_count + 1) if f"<img{index}>" not in xml_text]
+        if missing:
+            raise ValidationError(
+                "La plantilla Word no contiene los placeholders requeridos: " + ", ".join(missing)
+            )
+
+    @staticmethod
+    def _collect_docx_text(doc) -> str:
+        parts: list[str] = []
+        parts.extend(paragraph.text for paragraph in doc.paragraphs)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    parts.extend(paragraph.text for paragraph in cell.paragraphs)
+        for section in doc.sections:
+            parts.extend(paragraph.text for paragraph in section.header.paragraphs)
+            parts.extend(paragraph.text for paragraph in section.footer.paragraphs)
+        return "\n".join(parts)
 
     def validate_filter_records(self, records_count: int, selected_filter: str) -> None:
         if records_count <= 0:

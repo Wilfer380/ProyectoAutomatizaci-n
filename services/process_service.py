@@ -1,6 +1,5 @@
 ﻿from __future__ import annotations
 
-import subprocess
 import shutil
 import tempfile
 from datetime import datetime
@@ -42,6 +41,45 @@ class ProcessService:
         self.validation_service = validation_service
         self.logger = logger
 
+    def _build_word_document(
+        self,
+        template_path: Path,
+        output_path: Path,
+        image_paths: list[Path],
+        placeholder_count: int,
+        *,
+        block_index: int,
+        total_blocks: int,
+        log: LogCallback,
+    ) -> None:
+        try:
+            self.word_service.build_document_from_template(
+                str(template_path),
+                str(output_path),
+                image_paths,
+                placeholder_count,
+            )
+            log(f"Bloque {block_index}/{total_blocks}: documento Word generado con plantilla controlada.")
+            return
+        except Exception as exc:
+            self.logger.exception(
+                "Falló la generación Word con COM para el bloque %s/%s. Se intentará fallback sin COM.",
+                block_index,
+                total_blocks,
+            )
+            log(
+                f"Bloque {block_index}/{total_blocks}: Word COM falló al armar el documento "
+                f"({ErrorGuard.friendly_message(exc)}). Se intentará fallback sin COM."
+            )
+
+        self.word_service.build_document_without_com(
+            str(template_path),
+            str(output_path),
+            image_paths,
+            placeholder_count,
+        )
+        log(f"Bloque {block_index}/{total_blocks}: documento Word generado con fallback sin COM.")
+
     def load_filters(self, excel_path: str) -> list[str]:
         self.logger.info("Iniciando carga de filtros desde Excel: %s", excel_path)
         self.validation_service.validate_excel_file(excel_path)
@@ -80,10 +118,8 @@ class ProcessService:
 
         excel_path_obj = self.validation_service.validate_excel_file(excel_path)
         word_path_obj = self.validation_service.validate_word_file(word_path)
+        self.validation_service.validate_word_template_placeholders(word_path_obj)
         selected_filter = self.validation_service.validate_selected_filter(selected_filter)
-        if not simulate:
-            self.validation_service.validate_printer_installed(printer_name)
-
         output_dir = Path(output_directory or working_directory or excel_path_obj.parent)
         simulation_dir = self._build_simulation_dir(output_dir, selected_filter) if simulate else None
 
@@ -102,7 +138,7 @@ class ProcessService:
         if simulate:
             log(f"Modo prueba visual activo. Evidencias en: {simulation_dir}")
         else:
-            log(f"Impresora objetivo: {printer_name}")
+            log("Impresión automática deshabilitada. Los documentos quedarán listos para revisión e impresión manual.")
         status("Preparando copias temporales de trabajo...")
 
         temp_root = self.validation_service.validate_directory_writable(SAFE_TEMP_ROOT)
@@ -150,12 +186,13 @@ class ProcessService:
             record_count(len(records))
             log(f"Cantidad de registros encontrados: {len(records)}")
 
-            blocks = [records[start : start + BLOCK_SIZE] for start in range(0, len(records), BLOCK_SIZE)]
+            blocks = self._plan_blocks(records)
             for block in blocks:
                 self.validation_service.validate_block_size(len(block), BLOCK_SIZE)
 
+            recoverable_failures = 0
             if simulate:
-                self._simulate_blocks(
+                recoverable_failures = self._simulate_blocks(
                     word_path_obj,
                     runtime_excel_path,
                     blocks,
@@ -169,7 +206,7 @@ class ProcessService:
             else:
                 real_output_dir = self._build_real_output_dir(output_dir, selected_filter)
                 log(f"Ruta de plantillas generadas: {real_output_dir}")
-                self._print_blocks(
+                recoverable_failures = self._print_blocks(
                     word_path_obj,
                     runtime_excel_path,
                     blocks,
@@ -184,8 +221,18 @@ class ProcessService:
                 )
 
             status("Proceso finalizado.")
-            self.logger.info("Último bloque completado. Progreso total alcanzado: 100%%.")
-            log(f"Proceso completado correctamente: {len(blocks)} bloque(s), {len(records)} registro(s).")
+            if recoverable_failures:
+                self.logger.warning(
+                    "Proceso finalizado con %s bloque(s) omitido(s) por errores recuperables.",
+                    recoverable_failures,
+                )
+                log(
+                    f"Proceso completado con {recoverable_failures} bloque(s) omitido(s) por errores recuperables. "
+                    f"Se procesaron {len(blocks)} bloque(s) y {len(records)} registro(s)."
+                )
+            else:
+                self.logger.info("Último bloque completado. Progreso total alcanzado: 100%%.")
+                log(f"Proceso completado correctamente: {len(blocks)} bloque(s), {len(records)} registro(s).")
             self.logger.info("Proceso finalizado correctamente.")
         except ManualAdjustmentCancelled:
             self.logger.info("Proceso cancelado por el usuario durante revisiÃ³n manual.")
@@ -211,17 +258,28 @@ class ProcessService:
         status: StatusCallback,
         progress: ProgressCallback,
         manual_adjust: ManualAdjustCallback | None,
-    ) -> None:
+    ) -> int:
         if simulation_dir is None:
             raise ValidationError("No se pudo crear la carpeta de simulaci?n.")
 
         total_blocks = len(blocks)
         total_labels = sum(len(block) for block in blocks)
         manual_adjust = manual_adjust or (lambda _block, _total, _path, _mtime: "continuar")
+        recoverable_failures = 0
+        last_progress = 0
+
+        def report_progress(value: int) -> None:
+            nonlocal last_progress
+            value = int(value)
+            if value <= last_progress:
+                return
+            last_progress = value
+            progress(value)
 
         for block_index, block in enumerate(blocks, start=1):
             runtime_word_path = simulation_dir / self._block_document_name(selected_filter, block_index)
             word_opened = False
+            block_failed = False
             try:
                 status(f"Simulando bloque {block_index} de {total_blocks}")
                 image_dir = simulation_dir / TEMP_IMAGES_DIR_NAME / f"bloque_{block_index:03d}"
@@ -239,40 +297,46 @@ class ProcessService:
                     selected_filter,
                     image_dir,
                     log,
-                    progress,
+                    report_progress,
                     (block_index - 1) * BLOCK_SIZE,
                     total_labels,
                 )
                 shutil.copy2(word_path, runtime_word_path)
-                self.word_service.open(str(runtime_word_path), visible=False)
-                word_opened = True
-                self.word_service.prepare_placeholder_document()
-                for position, image_path in enumerate(image_paths, start=1):
-                    self.word_service.replace_image_placeholder(position, image_path)
-
-                cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
+                self._build_word_document(
+                    word_path,
+                    runtime_word_path,
+                    image_paths,
+                    len(block),
+                    block_index=block_index,
+                    total_blocks=total_blocks,
+                    log=log,
+                )
                 image_validation = self.word_service.validate_embedded_image_count(len(block))
-                self.word_service.save_document_copy(str(runtime_word_path))
                 baseline_mtime_ns = self._safe_mtime_ns(runtime_word_path)
-                self.word_service.show_to_user()
-                self.word_service.release_to_user()
                 log(
-                    f"Bloque {block_index}/{total_blocks}: documento Word COM listo para revisi?n manual. "
+                    f"Bloque {block_index}/{total_blocks}: documento Word listo para revisi?n manual. "
                     f"Im?genes detectadas: {image_validation.detected_count}/{image_validation.expected_count}."
                 )
-                log(f"Plantilla generada correctamente con COM: {runtime_word_path}")
-            except Exception:
-                self.logger.exception(
-                    "Error generando simulación del bloque %s/%s. Filtro=%s Excel=%s Word=%s",
-                    block_index,
-                    total_blocks,
-                    selected_filter,
-                    runtime_excel_path,
-                    runtime_word_path,
-                )
+                log(f"Plantilla generada correctamente: {runtime_word_path}")
+            except ValidationError:
                 raise
+            except ManualAdjustmentCancelled:
+                raise
+            except Exception as exc:
+                block_failed = True
+                recoverable_failures += 1
+                self._log_recoverable_block_failure(
+                    action="simulación",
+                    block_index=block_index,
+                    total_blocks=total_blocks,
+                    selected_filter=selected_filter,
+                    document_path=runtime_word_path,
+                    exception=exc,
+                    log=log,
+                    status=status,
+                )
 
-            try:
+            if not block_failed:
                 status(
                     f"Ajust?/imprim?/guard? el bloque {block_index}/{total_blocks} en Word. "
                     "Cuando hayas guardado, presion? Continuar."
@@ -285,14 +349,14 @@ class ProcessService:
                 saved = self._was_saved_after(runtime_word_path, baseline_mtime_ns)
                 log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'s?' if saved else 'no' }.")
                 log(f"Bloque {block_index}/{total_blocks}: se contin?a al siguiente bloque.")
-            finally:
-                if word_opened:
-                    self.word_service.close(save_changes=False)
+            if block_failed:
+                report_progress(int((block_index / total_blocks) * 95))
+            else:
+                report_progress(int((block_index / total_blocks) * 95))
 
-            progress(int((block_index / total_blocks) * 95))
-
-        progress(100)
+        report_progress(100)
         self.logger.info("Último bloque completado. Progreso total alcanzado: 100%%.")
+        return recoverable_failures
 
     def _print_blocks(
         self,
@@ -307,11 +371,22 @@ class ProcessService:
         status: StatusCallback,
         progress: ProgressCallback,
         manual_adjust: ManualAdjustCallback | None,
-    ) -> None:
+    ) -> int:
         manual_adjust = manual_adjust or (lambda _block, _total, _path, _mtime: "continuar")
         total_blocks = len(blocks)
         total_labels = sum(len(block) for block in blocks)
         processed_labels = 0
+        recoverable_failures = 0
+        last_progress = 0
+
+        def report_progress(value: int) -> None:
+            nonlocal last_progress
+            value = int(value)
+            if value <= last_progress:
+                return
+            last_progress = value
+            progress(value)
+
         for block_index, block in enumerate(blocks, start=1):
             block_word_path = output_dir / self._block_document_name(word_path.stem, block_index)
             status(f"Generando bloque {block_index} de {total_blocks}")
@@ -319,87 +394,82 @@ class ProcessService:
 
             image_dir = output_dir / TEMP_IMAGES_DIR_NAME / f"bloque_{block_index:03d}"
             log(
-                f"Transici?n Excel?Word por COM: bloque {block_index}/{total_blocks} listo. "
+                f"Transición Excel headless a Word plantilla: bloque {block_index}/{total_blocks} listo. "
                 f"Temp workspace activo={workspace_dir.exists()} plantilla Word origen={word_path.exists()}."
             )
             if self.excel_service.workbook is None:
                 self.excel_service.open(str(runtime_excel_path), visible=False)
-            image_paths = self._prepare_block_images(
-                block,
-                block_index,
-                total_blocks,
-                selected_filter,
-                image_dir,
-                log,
-                progress,
-                processed_labels,
-                total_labels,
-            )
-            word_opened = False
+            block_failed = False
             try:
-                shutil.copy2(word_path, block_word_path)
-                self.word_service.open(str(block_word_path), visible=False)
-                word_opened = True
-                self.word_service.prepare_placeholder_document()
-                for position, image_path in enumerate(image_paths, start=1):
-                    self.word_service.replace_image_placeholder(position, image_path)
-
-                cleaned_placeholders = self.word_service.clear_unused_image_placeholders(len(block))
-                image_validation = self.word_service.validate_embedded_image_count(len(block))
-                self.word_service.save_document_copy(str(block_word_path))
-                log(f"Bloque {block_index}/{total_blocks}: documento Word COM guardado en {block_word_path}.")
-
-                baseline_mtime_ns = self._safe_mtime_ns(block_word_path)
-                self.print_service.set_default_printer(printer_name)
-                self.word_service.print_document(printer_name)
-                log(
-                    f"Bloque {block_index}/{total_blocks}: impresi?n solicitada con Word COM usando '{printer_name}'. "
-                    f"Im?genes detectadas: {image_validation.detected_count}/{image_validation.expected_count}."
-                )
-            except Exception as exc:
-                self.logger.warning(
-                    "Word COM falló en el bloque %s/%s; usando fallback sin COM. Filtro=%s Documento=%s",
+                image_paths = self._prepare_block_images(
+                    block,
                     block_index,
                     total_blocks,
                     selected_filter,
-                    block_word_path,
-                    exc_info=True,
+                    image_dir,
+                    log,
+                    report_progress,
+                    processed_labels,
+                    total_labels,
                 )
-                if word_opened:
-                    self.word_service.close(save_changes=False)
-                    word_opened = False
-                self.word_service.build_document_without_com(
-                    str(word_path),
-                    str(block_word_path),
+                self._build_word_document(
+                    word_path,
+                    block_word_path,
                     image_paths,
                     len(block),
+                    block_index=block_index,
+                    total_blocks=total_blocks,
+                    log=log,
                 )
+                image_validation = self.word_service.validate_embedded_image_count(len(block))
+                log(f"Bloque {block_index}/{total_blocks}: documento Word guardado en {block_word_path}.")
+
                 baseline_mtime_ns = self._safe_mtime_ns(block_word_path)
                 log(
-                    f"Bloque {block_index}/{total_blocks}: documento generado con fallback sin COM."
+                    f"Bloque {block_index}/{total_blocks}: documento listo para revisión e impresión manual. "
+                    f"Im?genes detectadas: {image_validation.detected_count}/{image_validation.expected_count}."
+                )
+            except ValidationError:
+                raise
+            except ManualAdjustmentCancelled:
+                raise
+            except Exception as exc:
+                block_failed = True
+                recoverable_failures += 1
+                self._log_recoverable_block_failure(
+                    action="impresión",
+                    block_index=block_index,
+                    total_blocks=total_blocks,
+                    selected_filter=selected_filter,
+                    document_path=block_word_path,
+                    exception=exc,
+                    log=log,
+                    status=status,
                 )
 
             try:
-                status(
-                    f"Ajust?/imprim?/guard? el bloque {block_index}/{total_blocks} en Word. "
-                    "Cuando hayas guardado, presion? Continuar."
-                )
-                log(f"Bloque {block_index}/{total_blocks}: documento abierto para revisi?n manual: {block_word_path}")
-                action = manual_adjust(block_index, total_blocks, str(block_word_path), baseline_mtime_ns).strip().lower()
-                if action == "cancelar":
-                    raise ManualAdjustmentCancelled("Proceso cancelado por el usuario durante la revisi?n del bloque.")
+                if not block_failed:
+                    status(
+                        f"Ajust?/imprim?/guard? el bloque {block_index}/{total_blocks} en Word. "
+                        "Cuando hayas guardado, presion? Continuar."
+                    )
+                    log(f"Bloque {block_index}/{total_blocks}: documento abierto para revisi?n manual: {block_word_path}")
+                    action = manual_adjust(block_index, total_blocks, str(block_word_path), baseline_mtime_ns).strip().lower()
+                    if action == "cancelar":
+                        raise ManualAdjustmentCancelled("Proceso cancelado por el usuario durante la revisi?n del bloque.")
 
-                saved = self._was_saved_after(block_word_path, baseline_mtime_ns)
-                log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'s?' if saved else 'no' }.")
-                log(f"Bloque {block_index}/{total_blocks}: se contin?a al siguiente bloque.")
+                    saved = self._was_saved_after(block_word_path, baseline_mtime_ns)
+                    log(f"Bloque {block_index}/{total_blocks}: guardado detectado={'s?' if saved else 'no' }.")
+                    log(f"Bloque {block_index}/{total_blocks}: se contin?a al siguiente bloque.")
             finally:
-                if word_opened:
-                    self.word_service.close(save_changes=False)
+                self.word_service.close(save_changes=False)
 
             processed_labels += len(block)
-            progress(int((processed_labels / total_labels) * 100))
+            report_progress(int((processed_labels / total_labels) * 100))
         self.logger.info("Último bloque completado. Progreso total alcanzado: 100%%.")
+        report_progress(100)
         log(f"Fin de generaci?n por bloques. Total bloques: {total_blocks}; etiquetas: {total_labels}.")
+        return recoverable_failures
 
     def _prepare_block_images(
         self,
@@ -416,14 +486,10 @@ class ProcessService:
         try:
             self.excel_service.write_block_to_label_sheet(block)
             generated_assets = self.excel_service.get_generated_assets(len(block))
-        except Exception:
-            self.logger.exception(
-                "Error preparando datos del bloque %s/%s. Filtro=%s",
-                block_index,
-                total_blocks,
-                selected_filter,
-            )
-            raise
+        except Exception as exc:
+            raise RuntimeError(
+                f"No se pudieron preparar los datos del bloque {block_index}/{total_blocks} para el filtro '{selected_filter}'."
+            ) from exc
         source_assets = [record.asset_id for record in block]
         self.validation_service.validate_assets_match(source_assets, generated_assets)
 
@@ -442,25 +508,66 @@ class ProcessService:
                     image_path,
                     target_px=(LABEL_IMAGE_WIDTH_PX, LABEL_IMAGE_HEIGHT_PX),
                 )
-            except Exception:
+            except Exception as exc:
                 self.logger.exception(
-                    "Error exportando imagen de etiqueta. Filtro=%s Bloque=%s/%s Posición=%s",
-                    selected_filter,
+                    "Error exportando imagen del bloque %s/%s. Filtro=%s Posici\u00f3n=%s Archivo=%s",
                     block_index,
                     total_blocks,
+                    selected_filter,
                     position + 1,
+                    image_path,
                 )
-                raise
-            image_paths.append(Path(exported.output_path))
-            log(
-                f"Bloque {block_index}/{total_blocks}: etiqueta {position + 1}/{len(block)} exportada desde "
-                f"{exported.group_name}; tamaÃ±o final {exported.target_size_px[0]}x{exported.target_size_px[1]} px; "
-                f"archivo {exported.output_path}."
-            )
+                log(
+                    f"Bloque {block_index}/{total_blocks}: no se pudo exportar la etiqueta {position + 1}/{len(block)}; "
+                    f"se dejar\u00e1 vac\u00eda."
+                )
+                image_paths.append(image_path)
+            else:
+                image_paths.append(Path(exported.output_path))
+                log(
+                    f"Bloque {block_index}/{total_blocks}: etiqueta {position + 1}/{len(block)} exportada desde "
+                    f"{exported.group_name}; tama\u00f1o final {exported.target_size_px[0]}x{exported.target_size_px[1]} px; "
+                    f"archivo {exported.output_path}."
+                )
+
             if progress is not None and total_labels:
                 progress(int(((progress_base + position + 1) / total_labels) * 100))
 
         return image_paths
+
+    def _log_recoverable_block_failure(
+        self,
+        *,
+        action: str,
+        block_index: int,
+        total_blocks: int,
+        selected_filter: str,
+        document_path: Path,
+        exception: BaseException,
+        log: LogCallback,
+        status: StatusCallback,
+    ) -> None:
+        self.logger.exception(
+            "Error recuperable durante %s del bloque %s/%s. Filtro=%s Documento=%s",
+            action,
+            block_index,
+            total_blocks,
+            selected_filter,
+            document_path,
+        )
+        status(
+            f"Bloque {block_index}/{total_blocks}: se omitirá por un error recuperable. "
+            "Se continuará con el siguiente bloque."
+        )
+        log(
+            f"Bloque {block_index}/{total_blocks}: error recuperable durante {action}. "
+            f"Filtro={selected_filter}. Documento={document_path}. Detalle: {exception}. "
+            "Se continuará con el siguiente bloque."
+        )
+
+    @staticmethod
+    def _plan_blocks(records: list[AssetRecord]) -> list[list[AssetRecord]]:
+        return [records[start : start + BLOCK_SIZE] for start in range(0, len(records), BLOCK_SIZE)]
 
     def _build_simulation_dir(self, output_dir: Path, selected_filter: str) -> Path:
         safe_filter = "".join(char if char.isalnum() or char in ("-", "_") else "_" for char in selected_filter).strip("_")
