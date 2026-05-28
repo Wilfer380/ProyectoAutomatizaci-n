@@ -1,0 +1,11 @@
+flowchart LR
+    User[Inventory user] --> UI[PySide6 desktop UI]
+    UI --> VM[ViewModels\nMain / Preview / Label Item]
+    VM --> ExcelSvc[ExcelService\nopenpyxl]
+    VM --> PrintSvc[PrintService\nLabelRenderer + QPrinter]
+    ExcelSvc --> Excel[(Inventory Excel\nHoja1)]
+    PrintSvc --> Driver[Windows printer driver\nSATO WS408]
+    Driver --> Printer[[SATO WS408\n48mm x 23mm labels]]
+    UI --> Config[(App settings)]
+    PrintSvc --> DriverCheck[DriverCheck\nQPrinterInfo]
+    DriverCheck --> Driver

@@ -31,10 +31,12 @@ class TestMainWindow(unittest.TestCase):
         self.view_model.set_progress(45)
         self.assertEqual(self.window.progress_bar.value(), 45)
 
+        self.view_model._load_records_and_filters = MagicMock()
         self.view_model.select_file("C:/fake/path.xlsx")
         self.assertEqual(self.window.excel_path_edit.text(), "C:/fake/path.xlsx")
 
     def test_excel_button_selects_file_in_view_model(self):
+        self.view_model._load_records_and_filters = MagicMock()
         self.window.choose_excel_file = MagicMock(return_value="C:/fake/path.xlsx")
 
         self.window.select_excel_button.click()
@@ -43,6 +45,7 @@ class TestMainWindow(unittest.TestCase):
         self.assertEqual(self.window.excel_path_edit.text(), "C:/fake/path.xlsx")
 
     def test_manual_excel_path_updates_view_model(self):
+        self.view_model._load_records_and_filters = MagicMock()
         self.window.excel_path_edit.setText("C:/manual/path.xlsx")
         self.window.excel_path_edit.editingFinished.emit()
 

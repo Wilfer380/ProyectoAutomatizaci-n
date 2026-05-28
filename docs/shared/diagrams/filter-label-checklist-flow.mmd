@@ -1,0 +1,11 @@
+flowchart TD
+    A[Loaded AssetRecord list] --> B[Group by section]
+    B --> C[FilterSelectionDialog]
+    C --> D{User checks filter only?}
+    D -- yes --> E[Select all records in that filter]
+    D -- no, double click --> F[LabelSelectionDialog]
+    F --> G[User checks individual labels]
+    G --> H[Store explicit selected records]
+    E --> I[Selected records ready]
+    H --> I
+    I --> J[Generate preview labels]

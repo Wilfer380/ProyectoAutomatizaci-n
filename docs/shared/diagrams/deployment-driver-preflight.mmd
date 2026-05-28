@@ -1,0 +1,8 @@
+flowchart TD
+    A[Run installer / launcher] --> B[Copy or start application]
+    B --> C[Printer preflight]
+    C --> D{SATO WS408 found in Windows?}
+    D -- yes --> E[Continue normally]
+    D -- no --> F[Show warning: install driver or contact IT]
+    F --> G[App can be installed]
+    G --> H[Real printing blocked until driver exists]

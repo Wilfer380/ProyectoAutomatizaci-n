@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QObject, QEventLoop, QTimer
+from PySide6.QtCore import QObject
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 
@@ -18,6 +18,15 @@ class TestMainViewModel(unittest.TestCase):
         self.assertEqual(vm.selected_file_path, "")
         self.assertFalse(vm.is_processing)
         self.assertEqual(vm.progress_value, 0)
+
+    def _record(self, row: int, section: str = "S1") -> AssetRecord:
+        return AssetRecord(
+            row_index=row,
+            asset_id=f"ID{row}",
+            asset_name=f"N{row}",
+            section=section,
+            image=QImage(),
+        )
 
     def test_process_file_emits_signals(self):
         vm = MainViewModel()
@@ -58,15 +67,7 @@ class TestMainViewModel(unittest.TestCase):
         vm.errorOccurred.connect(on_error)
 
         # Mock ExcelService
-        mock_records = [
-            AssetRecord(
-                row_index=2,
-                asset_id="ID1",
-                asset_name="N1",
-                section="S1",
-                image=QImage(),
-            )
-        ]
+        mock_records = [self._record(1)]
 
         with patch("view_models.main_view_model.ExcelService") as mock_service_cls:
             mock_service = MagicMock()
@@ -75,26 +76,10 @@ class TestMainViewModel(unittest.TestCase):
 
             vm.select_file("test.xlsx")
             self.assertTrue(file_selected_emitted)
+            vm.set_selected_filters(["S1"])
+            vm.set_selected_records(mock_records)
 
-            # Start processing
             vm.process_file()
-            worker_ref = vm.worker
-
-            # Since QThread is likely used, we need an event loop to wait for it.
-            loop = QEventLoop()
-
-            # Quit the loop when processing finishes or after a timeout
-            vm.processingFinished.connect(lambda items: loop.quit())
-            vm.errorOccurred.connect(lambda err: loop.quit())
-
-            # Timeout in case the signals are never emitted
-            QTimer.singleShot(2000, loop.quit)
-
-            loop.exec()
-
-            # Ensure the worker has completely finished before exiting the test
-            if worker_ref:
-                worker_ref.wait()
 
             self.assertTrue(processing_started_emitted)
             self.assertTrue(processing_finished_emitted)
@@ -107,6 +92,40 @@ class TestMainViewModel(unittest.TestCase):
 
             self.assertFalse(vm.is_processing)
             self.assertEqual(vm.progress_value, 100)
+
+    def test_empty_configured_selection_does_not_fall_back_to_all_records(self):
+        vm = MainViewModel()
+        errors = []
+        finished = []
+        vm.errorOccurred.connect(errors.append)
+        vm.processingFinished.connect(finished.append)
+        vm._records = [self._record(1), self._record(2)]
+
+        vm.set_selected_filters([])
+        vm.process_file()
+
+        self.assertEqual(finished, [])
+        self.assertEqual(
+            errors, ["Seleccioná al menos un filtro o una etiqueta antes de generar."]
+        )
+
+    def test_selecting_new_file_clears_previous_selection(self):
+        vm = MainViewModel()
+        old_record = self._record(1, "OLD")
+        new_record = self._record(2, "NEW")
+        vm.set_selected_filters(["OLD"])
+        vm.set_selected_records([old_record])
+
+        with patch("view_models.main_view_model.ExcelService") as mock_service_cls:
+            mock_service = MagicMock()
+            mock_service.extract_data.return_value = [new_record]
+            mock_service_cls.return_value = mock_service
+
+            vm.select_file("new.xlsx")
+
+        self.assertEqual(vm.selected_filters, [])
+        self.assertEqual(vm.selected_records_by_filter(), {})
+        self.assertEqual(vm.records_by_filter(), {"NEW": [new_record]})
 
 
 if __name__ == "__main__":

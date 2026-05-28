@@ -7,8 +7,17 @@ Aplicación de escritorio en Python con PySide6 para generar, previsualizar e im
 1. Instalá dependencias con `pip install -r requirements.txt`.
 2. Ejecutá `python main.py`.
 3. Seleccioná el Excel de inventario.
-4. Generá las etiquetas y revisalas en la vista previa nativa.
-5. Confirmá para imprimir en **SATO WS408** o usá **Rehacer** para ajustar antes de imprimir.
+4. Abrí **Seleccionar filtros** y marcá filtros completos o etiquetas específicas.
+5. Generá las etiquetas y revisalas en la vista previa nativa con scroll.
+6. Confirmá para imprimir en **SATO WS408** o usá **Rechazar** para cancelar sin imprimir.
+
+## Documentación completa
+
+La documentación técnica y operativa bilingüe está en [`docs/README.md`](docs/README.md):
+
+- Español: [`docs/es/README.md`](docs/es/README.md)
+- English: [`docs/en/README.md`](docs/en/README.md)
+- Diagramas Mermaid: [`docs/shared/diagrams`](docs/shared/diagrams)
 
 ## Requisitos de producción
 
@@ -54,10 +63,11 @@ ProyectoAutomatizaci-n/
 | Área | Decisión |
 |---|---|
 | UI | PySide6 con patrón **MVVM**. La vista no contiene lógica de negocio. |
-| No bloqueo | La lectura/procesamiento corre con `QThread` para evitar congelar la pantalla. |
+| Control visual | La aplicación exige seleccionar filtros/etiquetas y aprobar la previsualización antes de imprimir. |
 | Entrada | El **Excel es la única fuente**. Ya no se usa plantilla Word. |
 | Extracción | `openpyxl` lee datos e imágenes ancladas del Excel. |
-| Preview | Subventana PySide6 con escena lógica de etiqueta **48x23 mm**. |
+| Filtros | Subventana con checklist por filtro y doble click para elegir etiquetas específicas. |
+| Preview | Subventana PySide6 blanca, más grande, con scroll y render de todas las etiquetas seleccionadas. |
 | Impresión | `QPrinter` + `QPainter`, sin Word, sin COM y sin aplicaciones externas. |
 | Driver | `QPrinterInfo` valida que exista **SATO WS408** antes de imprimir. |
 

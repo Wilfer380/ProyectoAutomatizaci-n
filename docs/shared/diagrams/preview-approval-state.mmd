@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> Generated: Labels generated
+    Generated --> PreviewRendered: Render every label image
+    PreviewRendered --> Rejected: User clicks Reject
+    Rejected --> [*]: Cancel without printing
+    PreviewRendered --> Printing: User clicks Confirm and print
+    Printing --> PrintFailed: Driver / printer error
+    PrintFailed --> PreviewRendered: User may retry after fixing issue
+    Printing --> Printed: All labels sent
+    Printed --> [*]

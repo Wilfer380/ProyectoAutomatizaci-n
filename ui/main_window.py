@@ -3,9 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-from PySide6.QtCore import QPoint, Qt, QStandardPaths, Signal
+from PySide6.QtCore import Qt, QStandardPaths, Signal
 from PySide6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFrame,
     QGroupBox,
@@ -27,19 +26,13 @@ from PySide6.QtWidgets import (
 from models.app_settings import AppSettings
 from services.driver_check import check_printer_driver
 from services.print_service import LabelPrintConfig, PrintService
-from ui.preview_subwindow import PreviewSubwindow
+from .filter_selection_dialog import FilterSelectionDialog
+from .preview_subwindow import PreviewSubwindow
 from utils.constants import APP_NAME, TARGET_PRINTER_NAME
 from utils.runtime import get_user_home_dir
+from view_models.label_item_view_model import LabelItemViewModel
 from view_models.main_view_model import MainViewModel
 from view_models.preview_view_model import PreviewViewModel
-
-
-class FilterComboBox(QComboBox):
-    def showPopup(self) -> None:
-        super().showPopup()
-        popup = self.view().window()
-        popup.setMinimumWidth(self.width())
-        popup.move(self.mapToGlobal(QPoint(0, self.height())))
 
 
 class MainWindow(QMainWindow):
@@ -237,11 +230,16 @@ class MainWindow(QMainWindow):
         filter_row.setContentsMargins(0, 0, 0, 0)
         filter_row.setSpacing(12)
 
-        self.filter_combo = FilterComboBox()
-        self.filter_combo.setPlaceholderText("Seleccione un filtro")
-        self.filter_combo.setMinimumHeight(44)
-        self.filter_combo.setMaxVisibleItems(20)
-        self.filter_combo.view().setTextElideMode(Qt.TextElideMode.ElideNone)
+        self.filter_summary_edit = QLineEdit()
+        self.filter_summary_edit.setReadOnly(True)
+        self.filter_summary_edit.setPlaceholderText("Seleccione uno o más filtros")
+        self.filter_summary_edit.setMinimumHeight(44)
+
+        self.select_filters_button = QPushButton("Seleccionar filtros")
+        self.select_filters_button.setObjectName("secondaryButton")
+        self.select_filters_button.setMinimumWidth(170)
+        self.select_filters_button.setMinimumHeight(44)
+        self.select_filters_button.clicked.connect(self._open_filter_selection_dialog)
 
         self.refresh_filters_button = QPushButton("Actualizar filtros")
         self.refresh_filters_button.setObjectName("secondaryButton")
@@ -249,7 +247,8 @@ class MainWindow(QMainWindow):
         self.refresh_filters_button.setMinimumHeight(44)
         self.refresh_filters_button.clicked.connect(self.refresh_filters_requested.emit)
 
-        filter_row.addWidget(self.filter_combo, stretch=1)
+        filter_row.addWidget(self.filter_summary_edit, stretch=1)
+        filter_row.addWidget(self.select_filters_button)
         filter_row.addWidget(self.refresh_filters_button)
 
         filter_layout.addWidget(filter_title)
@@ -549,6 +548,8 @@ class MainWindow(QMainWindow):
 
     def _bind_view_model(self, view_model: MainViewModel) -> None:
         view_model.fileSelected.connect(self.set_excel_path)
+        view_model.filtersLoaded.connect(self.set_filters)
+        view_model.recordCountChanged.connect(self.set_record_count)
         view_model.progressChanged.connect(self.set_progress)
         view_model.processingStarted.connect(lambda: self.set_busy(True))
         view_model.processingFinished.connect(self._open_preview_subwindow)
@@ -557,6 +558,9 @@ class MainWindow(QMainWindow):
         )
         self.select_excel_requested.connect(self._select_excel_for_view_model)
         self.excel_path_changed.connect(view_model.select_file)
+        self.refresh_filters_requested.connect(
+            lambda: view_model.select_file(self.excel_path_edit.text().strip())
+        )
         self.configure_printer_button.clicked.connect(self.validate_configured_printer)
         self.start_button.clicked.connect(view_model.process_file)
         self.start_button.setEnabled(True)
@@ -565,6 +569,34 @@ class MainWindow(QMainWindow):
         path = self.choose_excel_file()
         if path and self.view_model is not None:
             self.view_model.select_file(path)
+
+    def _open_filter_selection_dialog(self) -> None:
+        if self.view_model is None:
+            return
+        records_by_filter = self.view_model.records_by_filter()
+        filters = sorted(records_by_filter)
+        if not filters:
+            self.show_info(
+                "Filtros", "Primero seleccioná un Excel válido para cargar los filtros."
+            )
+            return
+        dialog = FilterSelectionDialog(
+            filters,
+            records_by_filter,
+            checked_filters=self.view_model.selected_filters,
+            selected_records_by_filter=self.view_model.selected_records_by_filter(),
+            parent=self,
+        )
+        if dialog.exec() == FilterSelectionDialog.DialogCode.Accepted:
+            checked_filters = dialog.checked_filters()
+            selected_records = dialog.selected_records()
+            self.view_model.set_selected_filters(checked_filters)
+            self.view_model.set_selected_records_by_filter(
+                dialog.selected_records_by_filter()
+            )
+            self.view_model.set_selected_records(selected_records)
+            self._set_filter_summary(checked_filters, len(selected_records))
+            self.set_record_count(len(selected_records))
 
     def validate_configured_printer(self) -> bool:
         printer_name = self.printer_name_edit.text().strip() or TARGET_PRINTER_NAME
@@ -589,11 +621,14 @@ class MainWindow(QMainWindow):
         )
         return False
 
-    def _open_preview_subwindow(self, label_items: list[object]) -> None:
+    def _open_preview_subwindow(self, label_items: list[LabelItemViewModel]) -> None:
         self.set_busy(False)
         printer_name = self.printer_name_edit.text().strip() or TARGET_PRINTER_NAME
         print_service = PrintService(LabelPrintConfig(printer_name=printer_name))
-        preview_view_model = PreviewViewModel(print_callback=print_service.print_labels)
+        preview_view_model = PreviewViewModel(
+            print_callback=print_service.print_labels,
+            preview_image_callback=print_service.render_preview_image,
+        )
         preview_view_model.set_items(label_items)
         self.preview_dialog = PreviewSubwindow(preview_view_model)
         self.preview_dialog.setModal(True)
@@ -668,23 +703,29 @@ class MainWindow(QMainWindow):
         chip.update()
 
     def set_filters(self, filters: Iterable[str]) -> None:
-        current = self.filter_combo.currentText()
-        self.filter_combo.blockSignals(True)
-        self.filter_combo.clear()
-        self.filter_combo.addItems(list(filters))
-        self.filter_combo.blockSignals(False)
-        self.set_selected_filter(current)
+        self._available_filters = list(filters)
+        self._set_filter_summary([], 0)
+
+    def _set_filter_summary(self, filters: list[str], selected_count: int) -> None:
+        if not filters:
+            self.filter_summary_edit.setText("")
+            return
+        if len(filters) == 1:
+            self.filter_summary_edit.setText(
+                f"{filters[0]} — {selected_count} etiqueta(s)"
+            )
+            return
+        self.filter_summary_edit.setText(
+            f"{len(filters)} filtros — {selected_count} etiqueta(s) seleccionadas"
+        )
 
     def selected_filter(self) -> str:
-        return self.filter_combo.currentText().strip()
+        if self.view_model is None:
+            return ""
+        return ", ".join(self.view_model.selected_filters)
 
     def set_selected_filter(self, value: str) -> None:
-        if not value:
-            return
-
-        index = self.filter_combo.findText(value)
-        if index >= 0:
-            self.filter_combo.setCurrentIndex(index)
+        return
 
     def set_start_enabled(self, enabled: bool) -> None:
         self.start_button.setEnabled(enabled)
@@ -726,6 +767,7 @@ class MainWindow(QMainWindow):
 
     def set_busy(self, busy: bool) -> None:
         self.select_excel_button.setEnabled(not busy)
+        self.select_filters_button.setEnabled(not busy)
         self.refresh_filters_button.setEnabled(not busy)
         self.configure_printer_button.setEnabled(not busy)
         self.simulate_button.setEnabled(False)

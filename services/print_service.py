@@ -154,6 +154,19 @@ class PrintService:
         self._renderer = renderer or LabelRenderer()
         self._printer_names_provider = printer_names_provider
 
+    def render_preview_image(self, item: LabelItemViewModel) -> QImage:
+        width_px, height_px = self._label_pixel_size()
+        image = QImage(width_px, height_px, QImage.Format.Format_ARGB32)
+        image.fill(Qt.GlobalColor.white)
+        painter = self._painter_factory()
+        if not painter.begin(image):
+            raise RuntimeError("No se pudo generar la previsualización de etiqueta.")
+        try:
+            self._render_single_label(painter, item, width_px, height_px)
+        finally:
+            painter.end()
+        return image
+
     def print_labels(self, items: Sequence[LabelItemViewModel]) -> None:
         if not items:
             raise ValueError("No hay etiquetas para imprimir.")
