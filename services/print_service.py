@@ -2,14 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtCore import QMarginsF, QRectF, QSizeF, Qt
-from PySide6.QtGui import QPageLayout, QPageSize, QPainter
+from PySide6.QtGui import QFont, QImage, QPageLayout, QPageSize, QPainter
 from PySide6.QtPrintSupport import QPrinter
 
 from services.driver_check import ensure_printer_driver
 from utils.constants import LABEL_HEIGHT_MM, LABEL_WIDTH_MM, TARGET_PRINTER_NAME
 from view_models.label_item_view_model import LabelItemViewModel
+
+DEFAULT_WEG_LOGO_PATH = Path(
+    r"Q:\PUBLIC\CO_MDE_CONTROL_DOCUMENTAL_CD\IMAGEN CORPORATIVA\2 FORMATOS\1. Logo WEG\2.Logo pequeño para plantillas Negro.png"
+)
 
 
 @dataclass(frozen=True)
@@ -18,38 +23,91 @@ class LabelPrintConfig:
     label_width_mm: float = LABEL_WIDTH_MM
     label_height_mm: float = LABEL_HEIGHT_MM
     margin_mm: float = 0.0
+    resolution_dpi: int = 203
+    logo_path: str = str(DEFAULT_WEG_LOGO_PATH)
 
 
 class LabelRenderer:
-    """Renders one 48x23mm label into the current QPainter coordinate system."""
+    """Renders one 48x23mm WEG asset label into the current QPainter coordinate system."""
 
-    def render_label(self, painter: QPainter, item: LabelItemViewModel) -> None:
-        label_rect = QRectF(0.0, 0.0, 48.0, 23.0)
-        text_rect = QRectF(1.5, 2.0, 25.0, 19.0)
-        image_rect = QRectF(
-            28.0 + float(item.image_offset_x),
-            2.0 + float(item.image_offset_y),
-            18.0 * float(item.image_scale),
-            19.0 * float(item.image_scale),
+    def __init__(self, logo_path: str | Path | None = DEFAULT_WEG_LOGO_PATH) -> None:
+        self.logo = QImage(str(logo_path)) if logo_path else QImage()
+
+    def render_label(
+        self,
+        painter: QPainter,
+        item: LabelItemViewModel,
+        width_px: int,
+        height_px: int,
+    ) -> None:
+        content_shift_x = -12.0
+        border = 4
+        label_rect = QRectF(
+            border + content_shift_x,
+            border,
+            width_px - (border * 2),
+            height_px - (border * 2),
         )
-
         painter.drawRect(label_rect)
+
+        logo_rect = QRectF(8.0 + content_shift_x, 8.0, 68.0, 42.0)
+        logo = (
+            item.image_data
+            if item.image_data is not None and not item.image_data.isNull()
+            else self.logo
+        )
+        if not logo.isNull():
+            painter.drawImage(logo_rect, logo)
+
+        header_rect = QRectF(70.0 + content_shift_x, 8.0, width_px - 78.0, 54.0)
+
+        section_font = QFont(painter.font())
+        section_font.setBold(False)
+        section_font.setPixelSize(22)
+        painter.setFont(section_font)
         painter.drawText(
-            text_rect,
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            self._label_text(item),
+            QRectF(header_rect.left(), 8.0, header_rect.width(), 22.0),
+            Qt.AlignmentFlag.AlignCenter,
+            item.section,
         )
 
-        image = item.image_data
-        if image is not None and not image.isNull():
-            painter.drawImage(image_rect, image)
-
-    def _label_text(self, item: LabelItemViewModel) -> str:
-        return "\n".join(
-            part
-            for part in (item.asset_id, item.asset_name, item.section)
-            if str(part).strip()
+        id_font = QFont(painter.font())
+        id_font.setPixelSize(27)
+        id_font.setBold(True)
+        painter.setFont(id_font)
+        painter.drawText(
+            QRectF(header_rect.left(), 31.0, header_rect.width(), 28.0),
+            Qt.AlignmentFlag.AlignCenter,
+            item.asset_id,
         )
+
+        description, tag_code = self._split_description_and_code(item.asset_name)
+
+        desc_font = QFont(painter.font())
+        desc_font.setBold(True)
+        desc_font.setPixelSize(17)
+        painter.setFont(desc_font)
+        painter.drawText(
+            QRectF(14.0 + content_shift_x, 74.0, width_px - 28.0, 54.0),
+            Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+            description,
+        )
+
+        code_font = QFont(painter.font())
+        code_font.setBold(False)
+        code_font.setPixelSize(18)
+        painter.setFont(code_font)
+        painter.drawText(
+            QRectF(14.0 + content_shift_x, 129.0, width_px - 28.0, 24.0),
+            Qt.AlignmentFlag.AlignCenter,
+            tag_code,
+        )
+
+    def _split_description_and_code(self, asset_name: str) -> tuple[str, str]:
+        parts = str(asset_name).strip().rsplit(" ", 1)
+        if len(parts) == 2 and any(char.isdigit() for char in parts[1]):
+            return parts[0], parts[1]
+        return str(asset_name).strip(), ""
 
 
 class PrintService:
@@ -83,16 +141,24 @@ class PrintService:
             raise RuntimeError("No se pudo iniciar el trabajo de impresión.")
 
         try:
+            width_px, height_px = self._label_pixel_size()
             for index, item in enumerate(items):
                 if index > 0:
                     printer.newPage()
-                self._renderer.render_label(painter, item)
+                self._renderer.render_label(painter, item, width_px, height_px)
         finally:
             painter.end()
+
+    def _label_pixel_size(self) -> tuple[int, int]:
+        return (
+            round(self.config.label_width_mm / 25.4 * self.config.resolution_dpi),
+            round(self.config.label_height_mm / 25.4 * self.config.resolution_dpi),
+        )
 
     def _create_configured_printer(self) -> QPrinter:
         printer = self._printer_factory(QPrinter.PrinterMode.HighResolution)
         printer.setPrinterName(self.config.printer_name)
+        printer.setResolution(self.config.resolution_dpi)
 
         page_size = QPageSize(
             QSizeF(self.config.label_width_mm, self.config.label_height_mm),

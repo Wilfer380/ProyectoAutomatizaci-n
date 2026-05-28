@@ -18,6 +18,10 @@ class FakePrinter:
         self.margins = None
         self.margin_unit = None
         self.new_pages = 0
+        self.resolution = None
+
+    def setResolution(self, resolution):
+        self.resolution = resolution
 
     def setPrinterName(self, printer_name):
         self.printer_name = printer_name
@@ -40,6 +44,7 @@ class FakePainter:
         self.drawn_text = []
         self.drawn_rects = []
         self.drawn_images = []
+        self.font_value = None
 
     def begin(self, printer):
         self.began = True
@@ -48,6 +53,12 @@ class FakePainter:
 
     def end(self):
         self.ended = True
+
+    def font(self):
+        return QPainter().font()
+
+    def setFont(self, font):
+        self.font_value = font
 
     def drawRect(self, rect):
         self.drawn_rects.append(rect)
@@ -63,8 +74,8 @@ class FakeRenderer:
     def __init__(self):
         self.items = []
 
-    def render_label(self, painter, item):
-        self.items.append(item)
+    def render_label(self, painter, item, width_px, height_px):
+        self.items.append((item, width_px, height_px))
 
 
 class TestPrintService(unittest.TestCase):
@@ -93,9 +104,11 @@ class TestPrintService(unittest.TestCase):
         self.assertEqual(fake_printer.printer_name, "SATO WS408")
         self.assertIsNotNone(fake_printer.page_size)
         self.assertIsNotNone(fake_printer.margins)
+        self.assertEqual(fake_printer.resolution, 203)
         self.assertEqual(fake_printer.new_pages, 1)
         self.assertTrue(fake_painter.began)
         self.assertTrue(fake_painter.ended)
+        self.assertEqual(fake_renderer.items[0][1:], (384, 184))
         self.assertEqual(len(fake_renderer.items), 2)
 
     def test_empty_label_list_is_rejected(self):
@@ -123,12 +136,14 @@ class TestPrintService(unittest.TestCase):
         item = self._make_item()
         painter = FakePainter()
 
-        LabelRenderer().render_label(cast(QPainter, painter), item)
+        LabelRenderer().render_label(cast(QPainter, painter), item, 384, 184)
 
         self.assertEqual(len(painter.drawn_rects), 1)
-        self.assertEqual(len(painter.drawn_text), 1)
-        self.assertIn("A-001", painter.drawn_text[0][2])
-        self.assertIn("Equipo de prueba", painter.drawn_text[0][2])
+        self.assertEqual(len(painter.drawn_text), 4)
+        printed_text = "\n".join(call[2] for call in painter.drawn_text)
+        self.assertIn("A-001", printed_text)
+        self.assertIn("Equipo de prueba", printed_text)
+        self.assertIn("IT", printed_text)
 
 
 if __name__ == "__main__":
