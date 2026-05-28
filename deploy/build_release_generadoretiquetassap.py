@@ -50,7 +50,11 @@ def clean_build_outputs() -> None:
         for child in DIST_RELEASE_DIR.iterdir():
             if child.is_dir() and child.name.startswith(f"{RELEASE_SHORT_NAME}_"):
                 shutil.rmtree(child)
-            elif child.is_file() and child.suffix.lower() == ".zip" and child.stem.startswith(f"{RELEASE_SHORT_NAME}_"):
+            elif (
+                child.is_file()
+                and child.suffix.lower() == ".zip"
+                and child.stem.startswith(f"{RELEASE_SHORT_NAME}_")
+            ):
                 child.unlink()
     if RELEASE_DIR.exists():
         shutil.rmtree(RELEASE_DIR)
@@ -84,8 +88,8 @@ INSTRUCCIONES
 
 REQUISITOS DEL EQUIPO
 - Windows.
-- Microsoft Excel y Microsoft Word instalados.
 - Impresora SATO WS408 instalada con ese nombre exacto para impresión real.
+- Controlador/Printer Utility SATO WS4 instalado. Si no aparece la impresora, contacte a TI/informática.
 
 CONTENIDO DEL PAQUETE
 - {INSTALLER_EXE_NAME}: instalador gráfico.
@@ -108,7 +112,9 @@ def write_version(target: Path) -> None:
         "install_root": str(INSTALL_ROOT),
         "distribution_mode": "zip-portable-with-installer",
     }
-    target.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    target.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def assemble_release() -> None:
@@ -122,7 +128,9 @@ def assemble_release() -> None:
     required = [app_dist_dir / APP_EXE_NAME, launcher_exe, installer_exe]
     missing = [str(path) for path in required if not path.exists()]
     if missing:
-        raise FileNotFoundError("No se encontraron artefactos esperados: " + ", ".join(missing))
+        raise FileNotFoundError(
+            "No se encontraron artefactos esperados: " + ", ".join(missing)
+        )
 
     shutil.copytree(app_dist_dir, payload_dir)
     shutil.copy2(launcher_exe, RELEASE_DIR / LAUNCHER_EXE_NAME)
@@ -136,7 +144,9 @@ def assemble_release() -> None:
 
 
 def zip_release() -> None:
-    with zipfile.ZipFile(RELEASE_ZIP, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+    with zipfile.ZipFile(
+        RELEASE_ZIP, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
+    ) as archive:
         for file_path in RELEASE_DIR.rglob("*"):
             if file_path.is_file():
                 archive.write(file_path, file_path.relative_to(RELEASE_DIR.parent))

@@ -1,200 +1,105 @@
 # Generador de Etiquetas SAP
 
-Aplicación de escritorio en Python con PySide6 para automatizar la generación e impresión de etiquetas de inventario usando un archivo Excel, una plantilla Word y la impresora **SATO WS408**.
+Aplicación de escritorio en Python con PySide6 para generar, previsualizar e imprimir etiquetas de inventario desde un archivo Excel. La impresión objetivo es la **SATO WS408** con etiquetas físicas de **48 mm x 23 mm**.
 
-## Objetivo
+## Quick path
 
-La aplicación permite:
+1. Instalá dependencias con `pip install -r requirements.txt`.
+2. Ejecutá `python main.py`.
+3. Seleccioná el Excel de inventario.
+4. Abrí **Seleccionar filtros** y marcá filtros completos o etiquetas específicas.
+5. Generá las etiquetas y revisalas en la vista previa nativa con scroll.
+6. Confirmá para imprimir en **SATO WS408** o usá **Rechazar** para cancelar sin imprimir.
 
-- seleccionar el archivo Excel origen,
-- seleccionar la plantilla Word,
-- cargar filtros únicos desde la columna **C** de **Hoja1**,
-- procesar los registros filtrados en bloques de **27**,
-- escribir los activos del bloque en **Etiqueta provisional!J2:J28**,
-- validar los activos generados,
-- copiar cada etiqueta individual desde los grupos/shapes de Excel,
-- generar automáticamente un documento Word por bloque con **una etiqueta por página**,
-- pegar cada etiqueta inline, centrada, con tamaño visual **5.03 cm x 2.54 cm**,
-- validar y autoajustar posición/tamaño contra la celda Word,
-- generar un documento Word nuevo por bloque copiando la plantilla original,
-- intentar imprimir cada bloque en **SATO WS408**.
+## Documentación completa
 
-## Arquitectura
+La documentación técnica y operativa bilingüe está en [`docs/README.md`](docs/README.md):
+
+- Español: [`docs/es/README.md`](docs/es/README.md)
+- English: [`docs/en/README.md`](docs/en/README.md)
+- Diagramas Mermaid: [`docs/shared/diagrams`](docs/shared/diagrams)
+
+## Requisitos de producción
+
+| Requisito | Detalle |
+|---|---|
+| Sistema | Windows |
+| Python | 3.11 o superior recomendado |
+| Excel fuente | Archivo `.xlsx/.xlsm` con hoja `Hoja1` y columnas esperadas |
+| Impresora | **SATO WS408** instalada en Windows con ese nombre exacto |
+| Driver | Controlador/Printer Utility de **SATO WS4** instalado por TI/informática si el usuario no tiene permisos |
+
+> Si el programa no detecta la SATO WS408, mostrará un mensaje claro pidiendo instalar el controlador o contactar a TI/informática.
+
+## Arquitectura actual
 
 ```text
-Automatización/
+ProyectoAutomatizaci-n/
 ├─ main.py
 ├─ requirements.txt
-├─ README.md
 ├─ ui/
-│  └─ main_window.py
-├─ controllers/
-│  └─ main_controller.py
+│  ├─ main_window.py
+│  └─ preview_subwindow.py
+├─ view_models/
+│  ├─ main_view_model.py
+│  ├─ label_item_view_model.py
+│  └─ preview_view_model.py
 ├─ services/
 │  ├─ excel_service.py
-│  ├─ word_service.py
 │  ├─ print_service.py
-│  ├─ validation_service.py
-│  └─ process_service.py
+│  ├─ driver_check.py
+│  └─ validation_service.py
 ├─ models/
 │  ├─ asset_record.py
 │  └─ app_settings.py
-├─ utils/
-│  ├─ logger.py
-│  ├─ config.py
-│  └─ constants.py
-└─ logs/
+└─ deploy/
+   ├─ installer_window_generadoretiquetassap.py
+   ├─ launcher_generadoretiquetassap.py
+   └─ printer_driver_preflight.py
 ```
 
-## Requisitos del entorno
+## Decisiones técnicas
 
-- Windows
-- Microsoft Excel instalado
-- Impresora **SATO WS408** instalada con ese nombre exacto
-- Python 3.11 o superior recomendado
+| Área | Decisión |
+|---|---|
+| UI | PySide6 con patrón **MVVM**. La vista no contiene lógica de negocio. |
+| Control visual | La aplicación exige seleccionar filtros/etiquetas y aprobar la previsualización antes de imprimir. |
+| Entrada | El **Excel es la única fuente**. Ya no se usa plantilla Word. |
+| Extracción | `openpyxl` lee datos e imágenes ancladas del Excel. |
+| Filtros | Subventana con checklist por filtro y doble click para elegir etiquetas específicas. |
+| Preview | Subventana PySide6 blanca, más grande, con scroll y render de todas las etiquetas seleccionadas. |
+| Impresión | `QPrinter` + `QPainter`, sin Word, sin COM y sin aplicaciones externas. |
+| Driver | `QPrinterInfo` valida que exista **SATO WS408** antes de imprimir. |
 
-## Instalación
-
-### 1. Crear entorno virtual
+## Instalación para desarrollo
 
 ```powershell
 python -m venv .venv
-```
-
-### 2. Activar entorno virtual
-
-```powershell
 .venv\Scripts\Activate.ps1
-```
-
-### 3. Instalar dependencias
-
-```powershell
 pip install -r requirements.txt
-```
-
-## Ejecución
-
-```powershell
 python main.py
 ```
 
-## Flujo funcional
-
-1. Abrir la aplicación.
-2. Seleccionar el archivo Excel.
-3. Seleccionar la plantilla Word.
-4. Pulsar **Actualizar filtros**.
-5. Elegir un filtro del ComboBox.
-6. Pulsar **Prueba visual sin imprimir** o **Generar e imprimir**.
-7. La aplicación:
-   - valida archivos, hojas, columnas e impresora,
-   - filtra registros de **Hoja1** por la columna **C**,
-   - procesa en bloques de **27**,
-   - escribe activos filtrados en **Etiqueta provisional!J2:J28**,
-   - valida activos,
-   - copia las etiquetas desde shapes/grupos individuales de Excel,
-   - copia la plantilla Word original para cada bloque,
-   - crea un layout Word de una etiqueta por página sobre la copia del bloque,
-   - inserta salto de página antes de cada etiqueta excepto la primera,
-   - valida tamaño y contenedor de cada etiqueta, corrigiendo si excede,
-    - en prueba visual genera documentos separados `{filtro}_bloque_001.docx`, `{filtro}_bloque_002.docx`, etc.; cada bloque se abre con la aplicación asociada y queda esperando tu confirmación antes de seguir,
-   - en impresión real imprime automáticamente cada copia de bloque de 27 páginas/etiquetas.
-
-## Validaciones implementadas
-
-- existencia del archivo Excel,
-- existencia de la plantilla Word,
-- presencia de hojas `Hoja1` y `Etiqueta provisional`,
-- existencia de columnas:
-  - `Activo fijo`
-  - `Denominación del activo fijo`
-  - `Seccion`
-- filtro obligatorio,
-- filtro con registros,
-- impresora `SATO WS408` instalada,
-- coincidencia de activos entre origen y salida,
-- tamaño máximo de bloque de 27 activos, manteniendo una página Word por etiqueta,
-- tamaño visual esperado de etiqueta **5.03 cm x 2.54 cm**,
-- límites del contenedor Word con imagen inline centrada y una única etiqueta por página para evitar agrupamientos en una misma hoja.
-
-## Decisiones técnicas clave
-
-### Excel
-
-Se usa **COM con pywin32** porque la hoja **Etiqueta provisional** tiene fórmulas y formato.  
-Por eso la aplicación:
-
-- escribe los activos del bloque únicamente en `Etiqueta provisional!J2:J28`,
-- recalcula Excel,
-- copia el resultado visual real desde shapes/grupos individuales.
-
-### Word
-
-La generación final de cada bloque se hace **sin COM de Word**, usando `python-docx` sobre una copia de la plantilla.  
-Cada bloque reemplaza los placeholders `<img1>...<img27>` con las PNG exportadas desde Excel y guarda un `.docx` nuevo por bloque. La impresión, cuando aplica, se delega al asociado predeterminado de Windows sin automatizar Word COM.
-
-### Impresión
-
-Cada bloque se imprime automáticamente al terminar, sin confirmación intermedia.
-
-## Advertencias técnicas
-
-### 1. Excel sigue requiriendo Office
-
-La extracción de datos y exportación de imágenes sigue usando Excel instalado.  
-Word ya no es necesario para generar los `.docx`, aunque sí para abrirlos o imprimirlos con la aplicación asociada.
-
-### 2. La plantilla Word puede requerir ajuste fino
-
-La implementación busca shapes por ID.  
-Si la plantilla real fue modificada manualmente, los IDs o el comportamiento interno de los grupos pueden cambiar.
-
-### 3. Archivos fuente
-
-La aplicación trabaja sobre copias temporales o de simulación de Excel y Word para no sobrescribir los archivos fuente.  
-Esto exige:
-
-- permisos de escritura,
-- archivo no bloqueado,
-- espacio temporal disponible durante el proceso.
-
-### 4. Red compartida
-
-El proyecto trabaja sobre una ruta UNC compartida.  
-Si la red está lenta o el archivo está bloqueado por otro usuario, el proceso puede fallar.
-
-### 5. Impresora
-
-La impresora debe existir con el nombre exacto:
-
-```text
-SATO WS408
-```
-
-## Empaquetado a EXE
-
-Recomendación:
+## Validación
 
 ```powershell
-pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed main.py
+python -m unittest discover -s tests
 ```
 
-Para una entrega empresarial más estable, probablemente convenga usar:
+## Empaquetado
+
+El empaquetado empresarial usa los `.spec` del repositorio:
 
 ```powershell
-pyinstaller --noconfirm --windowed --name GeneradorEtiquetasSAP main.py
+python deploy/build_release_generadoretiquetassap.py
 ```
 
-## Próxima fase
+El instalador valida el paquete, copia la aplicación, crea el launcher y advierte si no detecta el driver **SATO WS408**. Si el driver no está instalado, la instalación de la app puede terminar, pero la impresión real requerirá que TI/informática instale y configure el controlador.
 
-Antes de usar en producción, hay que hacer pruebas reales con:
+## Estado del refactor SDD
 
-- el archivo Excel real,
-- la plantilla Word real,
-- la impresora real,
-- los grupos reales de Excel usados para las etiquetas,
-- la zona exacta `Etiqueta provisional!J2:J28`.
-
-Ahí se ajustan los detalles finos que ninguna teoría reemplaza.
+- ✅ PR 1: extracción nativa desde Excel con `openpyxl` y eliminación de Word/COM.
+- ✅ PR 2: ViewModels MVVM y procesamiento no bloqueante.
+- ✅ PR 3: preview nativo en PySide6.
+- ✅ PR 4: impresión directa con `QPrinter`.
+- ✅ PR 5: detección de driver, mensajes amigables, instalador/launcher más robustos y limpieza de rutas legacy.

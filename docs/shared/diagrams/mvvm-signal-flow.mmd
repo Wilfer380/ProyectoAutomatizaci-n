@@ -1,0 +1,26 @@
+sequenceDiagram
+    actor User
+    participant View as MainWindow / Dialogs
+    participant VM as MainViewModel
+    participant Excel as ExcelService
+    participant PreviewVM as PreviewViewModel
+    participant Preview as PreviewSubwindow
+    participant Print as PrintService
+
+    User->>View: Select Excel
+    View->>VM: select_file(path)
+    VM->>Excel: extract_data(path)
+    Excel-->>VM: list[AssetRecord]
+    VM-->>View: filtersLoaded + recordCountChanged
+    User->>View: Select filters / labels
+    View->>VM: set_selected_filters / set_selected_records
+    User->>View: Generate labels
+    View->>VM: process_file()
+    VM-->>View: processingFinished(list[LabelItemViewModel])
+    View->>PreviewVM: set_items(labels)
+    View->>Preview: open()
+    Preview->>PreviewVM: preview_images()
+    PreviewVM->>Print: render_preview_image(item)
+    User->>Preview: Confirm and print
+    Preview->>PreviewVM: confirm()
+    PreviewVM->>Print: print_labels(labels)

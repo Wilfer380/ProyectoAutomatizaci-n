@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 try:
     from docx import Document
@@ -14,12 +14,8 @@ from utils.constants import (
     SOURCE_HEADERS,
     TARGET_PRINTER_NAME,
 )
+from services.driver_check import PrinterDriverMissingError, ensure_printer_driver
 from utils.normalization import normalize_excel_scalar
-
-try:
-    import win32print
-except ImportError:  # pragma: no cover
-    win32print = None
 
 
 class ValidationError(Exception):
@@ -36,38 +32,44 @@ class ValidationService:
                 with path.open("r+b"):
                     pass
         except PermissionError as exc:
-            raise ValidationError(f"No hay permisos suficientes para acceder a '{path}'.") from exc
+            raise ValidationError(
+                f"No hay permisos suficientes para acceder a '{path}'."
+            ) from exc
         except OSError as exc:
-            raise ValidationError(f"El archivo '{path}' no se puede abrir en este momento. Puede estar bloqueado por otra aplicación.") from exc
+            raise ValidationError(
+                f"El archivo '{path}' no se puede abrir en este momento. Puede estar bloqueado por otra aplicación."
+            ) from exc
 
     def validate_excel_file(self, excel_path: str) -> Path:
         path = Path(excel_path)
         if not path.exists():
             raise ValidationError("El archivo Excel no existe.")
-        if path.suffix.lower() not in {".xlsx", ".xlsm", ".xls"}:
+        if path.suffix.lower() not in {".xlsx", ".xlsm"}:
             raise ValidationError("El archivo Excel no tiene una extensión válida.")
         self._validate_file_access(path)
         return path
 
     def validate_word_file(self, word_path: str) -> Path:
-        path = Path(word_path)
-        if not path.exists():
-            raise ValidationError("La plantilla Word no existe.")
-        if path.suffix.lower() not in {".docx", ".docm", ".doc"}:
-            raise ValidationError("La plantilla Word no tiene una extensión válida.")
-        self._validate_file_access(path)
-        return path
+        raise ValidationError(
+            "La plantilla Word ya no se usa. Seleccioná solo el archivo Excel."
+        )
 
     def validate_directory_writable(self, directory: str | Path) -> Path:
         path = Path(directory)
         path.mkdir(parents=True, exist_ok=True)
         try:
-            with tempfile.NamedTemporaryFile(prefix="automatizacion_sap_check_", dir=str(path), delete=True):
+            with tempfile.NamedTemporaryFile(
+                prefix="automatizacion_sap_check_", dir=str(path), delete=True
+            ):
                 pass
         except PermissionError as exc:
-            raise ValidationError(f"No se puede escribir en la carpeta '{path}'.") from exc
+            raise ValidationError(
+                f"No se puede escribir en la carpeta '{path}'."
+            ) from exc
         except OSError as exc:
-            raise ValidationError(f"No se pudo validar la carpeta de trabajo '{path}'.") from exc
+            raise ValidationError(
+                f"No se pudo validar la carpeta de trabajo '{path}'."
+            ) from exc
         return path
 
     def validate_selected_filter(self, selected_filter: str) -> str:
@@ -77,14 +79,24 @@ class ValidationService:
         return value
 
     def validate_required_sheets(self, sheet_names: list[str]) -> None:
-        missing = [name for name in (EXCEL_SHEET_SOURCE, EXCEL_SHEET_LABEL) if name not in sheet_names]
+        missing = [
+            name
+            for name in (EXCEL_SHEET_SOURCE, EXCEL_SHEET_LABEL)
+            if name not in sheet_names
+        ]
         if missing:
-            raise ValidationError(f"No se encontraron las hojas requeridas: {', '.join(missing)}.")
+            raise ValidationError(
+                f"No se encontraron las hojas requeridas: {', '.join(missing)}."
+            )
 
     def validate_required_headers(self, headers: list[str]) -> None:
-        missing = [header for header in SOURCE_HEADERS.values() if header not in headers]
+        missing = [
+            header for header in SOURCE_HEADERS.values() if header not in headers
+        ]
         if missing:
-            raise ValidationError(f"No se encontraron las columnas requeridas: {', '.join(missing)}.")
+            raise ValidationError(
+                f"No se encontraron las columnas requeridas: {', '.join(missing)}."
+            )
 
     def validate_word_template_placeholders(self, word_path: str | Path, expected_count: int = 27) -> None:
         path = Path(word_path)
@@ -119,22 +131,36 @@ class ValidationService:
 
     def validate_filter_records(self, records_count: int, selected_filter: str) -> None:
         if records_count <= 0:
-            raise ValidationError(f"El filtro seleccionado '{selected_filter}' no tiene registros.")
+            raise ValidationError(
+                f"El filtro seleccionado '{selected_filter}' no tiene registros."
+            )
 
     def validate_block_size(self, records_count: int, block_size: int) -> None:
         if records_count > block_size:
-            raise ValidationError(f"El bloque actual supera el máximo permitido de {block_size} registros.")
+            raise ValidationError(
+                f"El bloque actual supera el máximo permitido de {block_size} registros."
+            )
 
-    def validate_assets_match(self, source_assets: list[str], generated_assets: list[str]) -> None:
+    def validate_assets_match(
+        self, source_assets: list[str], generated_assets: list[str]
+    ) -> None:
         normalized_source = [normalize_excel_scalar(asset) for asset in source_assets]
-        normalized_generated = [normalize_excel_scalar(asset) for asset in generated_assets]
+        normalized_generated = [
+            normalize_excel_scalar(asset) for asset in generated_assets
+        ]
 
         if normalized_source == normalized_generated:
             return
 
         mismatches: list[str] = []
         for index, (source, generated, source_norm, generated_norm) in enumerate(
-            zip(source_assets, generated_assets, normalized_source, normalized_generated),
+            zip(
+                source_assets,
+                generated_assets,
+                normalized_source,
+                normalized_generated,
+                strict=False,
+            ),
             start=1,
         ):
             if source_norm != generated_norm:
@@ -148,18 +174,14 @@ class ValidationService:
             )
 
         raise ValidationError(
-            "La validación de activos falló. Diferencias encontradas: " + "; ".join(mismatches)
+            "La validación de activos falló. Diferencias encontradas: "
+            + "; ".join(mismatches)
         )
 
-    def validate_printer_installed(self, printer_name: str = TARGET_PRINTER_NAME) -> None:
-        if win32print is None:
-            raise ValidationError("No se pudo importar win32print para validar impresoras.")
-
-        installed_printers = [
-            info[2]
-            for info in win32print.EnumPrinters(
-                win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-            )
-        ]
-        if printer_name not in installed_printers:
-            raise ValidationError(f"La impresora '{printer_name}' no está instalada.")
+    def validate_printer_installed(
+        self, printer_name: str = TARGET_PRINTER_NAME
+    ) -> None:
+        try:
+            ensure_printer_driver(printer_name)
+        except PrinterDriverMissingError as exc:
+            raise ValidationError(str(exc)) from exc

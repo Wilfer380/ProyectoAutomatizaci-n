@@ -1,0 +1,9 @@
+flowchart LR
+    A[LabelItemViewModel] --> B[LabelRenderer]
+    B --> C{Target}
+    C -- preview --> D[QImage\nwhite label preview]
+    C -- print --> E[QPainter on QPrinter]
+    E --> F[48mm x 23mm page\n203 DPI, 0 margins]
+    F --> G[Windows spooler]
+    G --> H[SATO WS408]
+    H --> I[Physical label]

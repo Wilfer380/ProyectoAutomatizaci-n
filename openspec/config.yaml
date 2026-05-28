@@ -1,14 +1,20 @@
 schema: spec-driven
 strict_tdd: true
 persistence: openspec
+execution:
+  mode: interactive
+artifact_store: openspec
+delivery:
+  chained_pr_strategy: auto-forecast
+  review_budget_lines: 400
 context: |
   Project: GeneradorEtiquetasSAP automation.
   Stack: Python 3.11+ desktop app with PySide6 GUI, pywin32 COM for Excel, python-docx for Word, Pillow for image handling.
   Architecture: layered UI/controller/service/model/utils design with deploy helpers and Windows-specific automation flows.
   Testing: unittest-based tests plus manual Excel/Word smoke scripts; no coverage, linter, formatter, or type-checker config detected.
-  Style: Windows-only automation, Spanish product/docs, English code identifiers, no existing SDD bootstrap found.
+  Style: Windows-only automation, Spanish product/docs, English code identifiers.
 testing:
-  detected: "2026-05-25"
+  detected: "2026-05-27"
   strict_tdd: true
   test_runner:
     command: "python -m unittest discover -s tests"

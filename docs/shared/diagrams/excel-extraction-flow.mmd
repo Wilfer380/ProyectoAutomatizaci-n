@@ -1,0 +1,13 @@
+flowchart TD
+    A[User selects Excel] --> B[openpyxl loads workbook]
+    B --> C{Hoja1 exists?}
+    C -- yes --> D[Use Hoja1]
+    C -- no --> E[Fallback to active sheet]
+    D --> F[Map header row]
+    E --> F
+    F --> G[Read asset id, description, section]
+    B --> H[Read anchored images]
+    H --> I[Map image by anchor row]
+    G --> J[Create AssetRecord per row]
+    I --> J
+    J --> K[Emit records and filters]

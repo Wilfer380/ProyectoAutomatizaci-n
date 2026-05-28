@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import traceback
 from logging import Logger
-from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 
 T = TypeVar("T")
@@ -21,8 +20,8 @@ class ErrorContext:
 
 class ErrorGuard:
     OFFICE_OFFLINE_HINT = (
-        "No se pudo completar el proceso porque Microsoft Word o Excel presentó un problema. "
-        "Verifica que Office esté instalado, activado y que no tenga ventanas pendientes de inicio de sesión. "
+        "No se pudo completar el proceso porque el archivo Excel o la impresora presentó un problema. "
+        "Verifica que el archivo esté disponible, que no esté bloqueado y que la SATO WS408 esté instalada. "
         "El detalle técnico fue guardado en la carpeta logs."
     )
     GENERIC_HINT = (
@@ -34,13 +33,11 @@ class ErrorGuard:
     def friendly_message(exc: BaseException) -> str:
         text = f"{exc}".lower()
         office_markers = (
-            "microsoft word",
             "microsoft excel",
-            "word ha detectado un problema",
-            "word no pudo desencadenar el evento",
             "inicia sesión",
             "sign in",
-            "office",
+            "printer",
+            "impresora",
             "0x800706ba",
             "0x8001010d",
             "0x80010108",
@@ -68,7 +65,9 @@ class ErrorGuard:
 
 
 class SafeExecutor:
-    def __init__(self, logger: Logger, user_message_callback: Callable[[str], None] | None = None) -> None:
+    def __init__(
+        self, logger: Logger, user_message_callback: Callable[[str], None] | None = None
+    ) -> None:
         self.logger = logger
         self.user_message_callback = user_message_callback
 
@@ -99,10 +98,14 @@ class SafeExecutor:
                 try:
                     self.user_message_callback(message)
                 except Exception:
-                    self.logger.exception("No se pudo mostrar el mensaje amigable al usuario.")
+                    self.logger.exception(
+                        "No se pudo mostrar el mensaje amigable al usuario."
+                    )
             if on_error is not None:
                 try:
                     on_error(exc, message)
                 except Exception:
-                    self.logger.exception("No se pudo ejecutar el callback de error seguro.")
+                    self.logger.exception(
+                        "No se pudo ejecutar el callback de error seguro."
+                    )
             return default

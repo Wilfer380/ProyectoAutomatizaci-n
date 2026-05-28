@@ -1,0 +1,11 @@
+flowchart TD
+    A[User action] --> B{Excel readable?}
+    B -- no --> B1[Friendly Excel error + log detail]
+    B -- yes --> C{Records selected?}
+    C -- no --> C1[Do not print / ask for selection]
+    C -- yes --> D[Preview approval]
+    D --> E{Driver SATO WS408 installed?}
+    E -- no --> E1[Install/contact IT guidance]
+    E -- yes --> F{QPainter begins print job?}
+    F -- no --> F1[Show print startup error]
+    F -- yes --> G[Print labels]
