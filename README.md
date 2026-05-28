@@ -16,7 +16,9 @@ Aplicación de escritorio en Python con PySide6 para generar, previsualizar e im
 La documentación técnica y operativa bilingüe está en [`docs/README.md`](docs/README.md):
 
 - Español: [`docs/es/README.md`](docs/es/README.md)
+- Guía SATO/máquina: [`docs/es/09-guia-impresion-sato.md`](docs/es/09-guia-impresion-sato.md)
 - English: [`docs/en/README.md`](docs/en/README.md)
+- SATO machine guide: [`docs/en/09-sato-print-setup-guide.md`](docs/en/09-sato-print-setup-guide.md)
 - Diagramas Mermaid: [`docs/shared/diagrams`](docs/shared/diagrams)
 
 ## Requisitos de producción
@@ -28,6 +30,7 @@ La documentación técnica y operativa bilingüe está en [`docs/README.md`](doc
 | Excel fuente | Archivo `.xlsx/.xlsm` con hoja `Hoja1` y columnas esperadas |
 | Impresora | **SATO WS408** instalada en Windows con ese nombre exacto |
 | Driver | Controlador/Printer Utility de **SATO WS4** instalado por TI/informática si el usuario no tiene permisos |
+| Configuración física | Stock `48 mm x 23 mm`, `203 DPI`, sin escalado automático, sensor/gap calibrado y cola de Windows limpia |
 
 > Si el programa no detecta la SATO WS408, mostrará un mensaje claro pidiendo instalar el controlador o contactar a TI/informática.
 
@@ -95,6 +98,8 @@ python deploy/build_release_generadoretiquetassap.py
 ```
 
 El instalador valida el paquete, copia la aplicación, crea el launcher y advierte si no detecta el driver **SATO WS408**. Si el driver no está instalado, la instalación de la app puede terminar, pero la impresión real requerirá que TI/informática instale y configure el controlador.
+
+Para validar la salida física, no alcanza con que la app abra: la máquina debe tener stock `48 mm x 23 mm`, `203 DPI`, sensor/gap calibrado, cola de impresión limpia y escalado desactivado. Ver [`docs/es/09-guia-impresion-sato.md`](docs/es/09-guia-impresion-sato.md).
 
 ## Estado del refactor SDD
 

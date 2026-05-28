@@ -24,6 +24,8 @@ class TestDriverCheck(unittest.TestCase):
         self.assertIn("Controlador SATO WS408 no detectado", message)
         self.assertIn("contactá a TI", message)
         self.assertIn("departamento de informática", message)
+        self.assertIn("48 mm x 23 mm", message)
+        self.assertIn("203 DPI", message)
 
     def test_ensure_printer_driver_raises_when_missing(self):
         with self.assertRaises(PrinterDriverMissingError):
