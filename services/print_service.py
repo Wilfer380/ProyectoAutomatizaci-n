@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QMarginsF, QRectF, QSizeF, Qt
-from PySide6.QtGui import QFont, QImage, QPageLayout, QPageSize, QPainter
+from PySide6.QtGui import QFont, QFontMetrics, QImage, QPageLayout, QPageSize, QPainter
 from PySide6.QtPrintSupport import QPrinter
 
 from services.driver_check import ensure_printer_driver
@@ -25,6 +25,7 @@ class LabelPrintConfig:
     margin_mm: float = 0.0
     resolution_dpi: int = 203
     logo_path: str = str(DEFAULT_WEG_LOGO_PATH)
+    separate_jobs: bool = True
 
 
 class LabelRenderer:
@@ -83,15 +84,19 @@ class LabelRenderer:
 
         description, tag_code = self._split_description_and_code(item.asset_name)
 
-        desc_font = QFont(painter.font())
-        desc_font.setBold(True)
-        desc_font.setPixelSize(17)
-        painter.setFont(desc_font)
-        painter.drawText(
-            QRectF(14.0 + content_shift_x, 74.0, width_px - 28.0, 54.0),
-            Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
+        desc_rect = QRectF(14.0 + content_shift_x, 74.0, width_px - 28.0, 54.0)
+        desc_flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
+        desc_font = self._fit_font(
+            painter.font(),
             description,
+            desc_rect,
+            base_size=17,
+            min_size=10,
+            bold=True,
+            flags=desc_flags,
         )
+        painter.setFont(desc_font)
+        painter.drawText(desc_rect, desc_flags, description)
 
         code_font = QFont(painter.font())
         code_font.setBold(False)
@@ -102,6 +107,29 @@ class LabelRenderer:
             Qt.AlignmentFlag.AlignCenter,
             tag_code,
         )
+
+    def _fit_font(
+        self,
+        base_font: QFont,
+        text: str,
+        rect: QRectF,
+        *,
+        base_size: int,
+        min_size: int,
+        bold: bool,
+        flags: Qt.AlignmentFlag | Qt.TextFlag,
+    ) -> QFont:
+        for size in range(base_size, min_size - 1, -1):
+            font = QFont(base_font)
+            font.setBold(bold)
+            font.setPixelSize(size)
+            bounds = QFontMetrics(font).boundingRect(rect.toRect(), int(flags), text)
+            if bounds.width() <= rect.width() and bounds.height() <= rect.height():
+                return font
+        font = QFont(base_font)
+        font.setBold(bold)
+        font.setPixelSize(min_size)
+        return font
 
     def _split_description_and_code(self, asset_name: str) -> tuple[str, str]:
         parts = str(asset_name).strip().rsplit(" ", 1)
@@ -134,6 +162,12 @@ class PrintService:
             self.config.printer_name,
             printer_names_provider=self._printer_names_provider,
         )
+        width_px, height_px = self._label_pixel_size()
+        if self.config.separate_jobs:
+            for item in items:
+                self._print_single_label(item, width_px, height_px)
+            return
+
         printer = self._create_configured_printer()
         painter = self._painter_factory()
 
@@ -141,13 +175,37 @@ class PrintService:
             raise RuntimeError("No se pudo iniciar el trabajo de impresión.")
 
         try:
-            width_px, height_px = self._label_pixel_size()
             for index, item in enumerate(items):
                 if index > 0:
                     printer.newPage()
-                self._renderer.render_label(painter, item, width_px, height_px)
+                self._render_single_label(painter, item, width_px, height_px)
         finally:
             painter.end()
+
+    def _print_single_label(
+        self, item: LabelItemViewModel, width_px: int, height_px: int
+    ) -> None:
+        printer = self._create_configured_printer()
+        painter = self._painter_factory()
+        if not painter.begin(printer):
+            raise RuntimeError("No se pudo iniciar el trabajo de impresión.")
+        try:
+            self._render_single_label(painter, item, width_px, height_px)
+        finally:
+            painter.end()
+
+    def _render_single_label(
+        self,
+        painter: QPainter,
+        item: LabelItemViewModel,
+        width_px: int,
+        height_px: int,
+    ) -> None:
+        painter.save()
+        try:
+            self._renderer.render_label(painter, item, width_px, height_px)
+        finally:
+            painter.restore()
 
     def _label_pixel_size(self) -> tuple[int, int]:
         return (
