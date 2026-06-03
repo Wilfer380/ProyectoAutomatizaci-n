@@ -10,6 +10,7 @@ Esta carpeta explica cómo funciona el generador de etiquetas para SATO WS408, p
 |---|---|
 | Español | [`docs/es/README.md`](es/README.md) |
 | English | [`docs/en/README.md`](en/README.md) |
+| Interactive HTML | [`docs/interactive.html`](interactive.html) |
 
 ## Shared diagrams / Diagramas compartidos
 
