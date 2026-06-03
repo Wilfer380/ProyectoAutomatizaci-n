@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Iterable
 
-from PySide6.QtCore import Qt, QStandardPaths, Signal
+from PySide6.QtCore import QStandardPaths, Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
     QFrame,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QMenu,
     QScrollArea,
     QSizePolicy,
     QStatusBar,
@@ -67,6 +68,8 @@ class MainWindow(QMainWindow):
         status_bar.showMessage("Aplicación lista.")
         self.setStatusBar(status_bar)
 
+        self._build_menu_bar()
+
         scroll_area = QScrollArea(self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setFrameShape(QFrame.Shape.NoFrame)
@@ -79,7 +82,6 @@ class MainWindow(QMainWindow):
         root_layout.setContentsMargins(24, 20, 24, 20)
         root_layout.setSpacing(18)
 
-        root_layout.addWidget(self._build_header_card())
         root_layout.addWidget(self._build_summary_bar())
         root_layout.addWidget(self._build_file_group())
         root_layout.addWidget(self._build_process_group())
@@ -92,34 +94,20 @@ class MainWindow(QMainWindow):
 
         self._apply_styles()
 
-    def _build_header_card(self) -> QFrame:
-        frame = QFrame()
-        frame.setObjectName("headerCard")
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(24, 22, 24, 22)
-        layout.setSpacing(8)
+    def _build_menu_bar(self) -> None:
+        menu_bar = self.menuBar()
+        menu_bar.setNativeMenuBar(False)
 
-        title_label = QLabel(APP_NAME)
-        title_label.setObjectName("titleLabel")
+        program_menu = menu_bar.addMenu("Programa")
+        info_menu = QMenu("Información", self)
+        info_menu.addAction("Ver información del programa", self.show_program_information)
+        help_menu = QMenu("Ayuda", self)
+        help_menu.addAction("Ver guía de uso", self.show_program_help)
 
-        subtitle_label = QLabel(
-            "Automatización de generación y previsualización de etiquetas desde Excel"
-        )
-        subtitle_label.setObjectName("subtitleLabel")
-        subtitle_label.setWordWrap(True)
-
-        helper_label = QLabel(
-            "Seleccioná la base Excel. "
-            "El sistema genera una previsualización nativa de etiquetas 48x23 mm, "
-            "permite confirmar o rehacer ajustes y evita depender de plantillas externas."
-        )
-        helper_label.setObjectName("helperLabel")
-        helper_label.setWordWrap(True)
-
-        layout.addWidget(title_label)
-        layout.addWidget(subtitle_label)
-        layout.addWidget(helper_label)
-        return frame
+        program_menu.addMenu(info_menu)
+        program_menu.addMenu(help_menu)
+        program_menu.addSeparator()
+        program_menu.addAction("Salir", self.close)
 
     def _build_summary_bar(self) -> QFrame:
         frame = QFrame()
@@ -363,6 +351,44 @@ class MainWindow(QMainWindow):
             QMainWindow {
                 background-color: #0B1120;
             }
+            QMenuBar {
+                background: #0F172A;
+                color: #E2E8F0;
+                padding: 4px 8px;
+                border-bottom: 1px solid #1F2937;
+            }
+            QMenuBar::item {
+                background: transparent;
+                padding: 6px 14px;
+                margin: 2px 4px;
+                border-radius: 8px;
+            }
+            QMenuBar::item:selected {
+                background: #1D4ED8;
+                color: white;
+            }
+            QMenu {
+                background: #111827;
+                color: #E2E8F0;
+                border: 1px solid #334155;
+                padding: 8px;
+                border-radius: 10px;
+            }
+            QMenu::item {
+                background: transparent;
+                padding: 8px 18px 8px 18px;
+                border-radius: 6px;
+                min-width: 220px;
+            }
+            QMenu::item:selected {
+                background: #2563EB;
+                color: white;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #334155;
+                margin: 6px 8px;
+            }
             QStatusBar {
                 background: #111827;
                 color: #CBD5E1;
@@ -378,16 +404,6 @@ class MainWindow(QMainWindow):
                 color: #F8FAFC;
                 font-size: 30px;
                 font-weight: 700;
-            }
-            #subtitleLabel {
-                color: #93C5FD;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            #helperLabel {
-                color: #CBD5E1;
-                font-size: 13px;
-                padding-top: 2px;
             }
             #statusChip {
                 padding: 4px 12px;
@@ -812,6 +828,20 @@ class MainWindow(QMainWindow):
 
     def show_info(self, title: str, message: str) -> None:
         QMessageBox.information(self, title, message)
+
+    def show_program_information(self) -> None:
+        QMessageBox.information(
+            self,
+            "Información del programa",
+            "Generador de Etiquetas SAP automatiza la lectura del Excel, la selección de filtros y la generación de etiquetas 48x23 mm con vista previa nativa.\n\nFlujo técnico: cargar Excel .xlsx/.xlsm -> seleccionar filtros -> validar impresora -> generar -> revisar -> imprimir.",
+        )
+
+    def show_program_help(self) -> None:
+        QMessageBox.information(
+            self,
+            "Ayuda y soporte",
+            "1. Seleccioná la base Excel válida (.xlsx o .xlsm).\n2. Definí los filtros necesarios y revisá la cantidad de etiquetas.\n3. Validá la impresora SATO WS408 antes de generar.\n4. Revisá la vista previa y confirmá la impresión directa.\n\nSoporte: ante novedades o incidencias, contactá a maicolj@weg.net y a wandica@weg.net.",
+        )
 
     def confirm_continue_without_save(self, document_path: str) -> bool:
         confirm = QMessageBox.warning(

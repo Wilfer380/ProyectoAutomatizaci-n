@@ -138,15 +138,18 @@ class TestPrintService(unittest.TestCase):
             service.print_labels([])
 
     def test_missing_driver_is_rejected_before_printing(self):
-        service = PrintService(
-            LabelPrintConfig(printer_name="SATO WS408"),
-            printer_factory=cast(Callable[..., QPrinter], lambda *_args: FakePrinter()),
-            painter_factory=cast(Callable[[], QPainter], FakePainter),
-            printer_names_provider=lambda: ["Microsoft Print to PDF"],
-        )
+        from unittest.mock import patch
 
-        with self.assertRaises(PrinterDriverMissingError):
-            service.print_labels([self._make_item()])
+        with patch("services.driver_check.powershell_printer_names", return_value=()):
+            service = PrintService(
+                LabelPrintConfig(printer_name="SATO WS408"),
+                printer_factory=cast(Callable[..., QPrinter], lambda *_args: FakePrinter()),
+                painter_factory=cast(Callable[[], QPainter], FakePainter),
+                printer_names_provider=lambda: ["Microsoft Print to PDF"],
+            )
+
+            with self.assertRaises(PrinterDriverMissingError):
+                service.print_labels([self._make_item()])
 
     def test_renderer_draws_asset_text(self):
         item = self._make_item()

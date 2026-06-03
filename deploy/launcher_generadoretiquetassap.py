@@ -15,6 +15,7 @@ from deploy.paths_config_generadoretiquetassap import (
     INSTALL_ROOT,
     INSTALLER_EXE_NAME,
     LATEST_RELEASE_DIR,
+    UPDATE_FEED_FILE_NAME,
 )
 
 
@@ -48,6 +49,19 @@ def _version_text(path: Path) -> str:
         return "0"
 
 
+def _read_update_root() -> Path:
+    feed_file = INSTALL_ROOT / UPDATE_FEED_FILE_NAME
+    if feed_file.exists():
+        try:
+            data = json.loads(feed_file.read_text(encoding="utf-8"))
+            update_root = str(data.get("update_root", "")).strip()
+            if update_root:
+                return Path(update_root)
+        except Exception:
+            pass
+    return LATEST_RELEASE_DIR
+
+
 def _launch_installer(source_root: Path) -> int:
     installer_exe = source_root / INSTALLER_EXE_NAME
     if not installer_exe.exists():
@@ -67,7 +81,8 @@ def _launch_installer(source_root: Path) -> int:
 
 def main() -> int:
     app_exe = INSTALL_APP_DIR / APP_EXE_NAME
-    latest_version_file = LATEST_RELEASE_DIR / "version.json"
+    update_root = _read_update_root()
+    latest_version_file = update_root / "version.json"
     installed_version_file = INSTALL_ROOT / "version.json"
 
     if latest_version_file.exists():
@@ -86,7 +101,7 @@ def main() -> int:
             )
             root.destroy()
             if response:
-                return _launch_installer(LATEST_RELEASE_DIR)
+                return _launch_installer(update_root)
 
     if not app_exe.exists():
         _show_error(

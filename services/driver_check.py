@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
@@ -36,6 +37,30 @@ def available_printer_names() -> tuple[str, ...]:
     return tuple(QPrinterInfo.availablePrinterNames())
 
 
+def powershell_printer_names() -> tuple[str, ...]:
+    try:
+        result = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Get-Printer | Select-Object -ExpandProperty Name",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except Exception:
+        return ()
+
+    if result.returncode != 0:
+        return ()
+
+    names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    return tuple(names)
+
+
 def check_printer_driver(
     printer_name: str = TARGET_PRINTER_NAME,
     *,
@@ -44,6 +69,10 @@ def check_printer_driver(
     provider = printer_names_provider or available_printer_names
     available = tuple(str(name) for name in provider())
     installed = printer_name in available
+    if not installed:
+        fallback_available = tuple(str(name) for name in powershell_printer_names())
+        available = tuple(dict.fromkeys((*available, *fallback_available)))
+        installed = printer_name in available
     return PrinterDriverStatus(
         printer_name=printer_name,
         installed=installed,

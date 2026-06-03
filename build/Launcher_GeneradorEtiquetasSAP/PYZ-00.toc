@@ -70,7 +70,10 @@
   ('decimal',
    'C:\\Users\\wandica\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\decimal.py',
    'PYMODULE'),
-  ('deploy', '-', 'PYMODULE'),
+  ('deploy',
+   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   'diseños\\FORMATOS SAP\\Automatización\\deploy\\__init__.py',
+   'PYMODULE'),
   ('deploy.paths_config_generadoretiquetassap',
    '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '

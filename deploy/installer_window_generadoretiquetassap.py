@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import traceback
 from contextlib import suppress
 from importlib import import_module
 from pathlib import Path
+from textwrap import dedent
 from tkinter import BOTH, END, RIGHT, X, Button, Frame, Label, Text, Tk, messagebox, ttk
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -17,6 +19,7 @@ from deploy.paths_config_generadoretiquetassap import (
     INSTALL_APP_DIR,
     INSTALL_ROOT,
     LAUNCHER_EXE_NAME,
+    UPDATE_FEED_FILE_NAME,
 )
 from utils.runtime import get_user_home_dir
 
@@ -185,6 +188,16 @@ class InstallerWindow:
         INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_version, INSTALL_ROOT / "version.json")
 
+    def _write_update_feed(self) -> None:
+        INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "update_root": str(self.source_dir),
+            "version_file": "version.json",
+        }
+        (INSTALL_ROOT / UPDATE_FEED_FILE_NAME).write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+
     def _launch_installed_app(self, launcher_target: Path) -> None:
         subprocess.Popen([str(launcher_target)], cwd=str(INSTALL_ROOT))
 
@@ -207,10 +220,37 @@ class InstallerWindow:
     def _create_desktop_shortcut(self, launcher_target: Path) -> None:
         desktop = get_user_home_dir() / "Desktop"
         desktop.mkdir(parents=True, exist_ok=True)
-        shortcut_path = desktop / f"{APP_DISPLAY_NAME}.url"
-        shortcut_path.write_text(
-            f"[InternetShortcut]\nURL=file:///{launcher_target.as_posix()}\n",
-            encoding="utf-8",
+        shortcut_path = desktop / f"{APP_DISPLAY_NAME}.lnk"
+        legacy_shortcut_path = desktop / f"{APP_DISPLAY_NAME}.url"
+        with suppress(Exception):
+            if legacy_shortcut_path.exists():
+                legacy_shortcut_path.unlink()
+        with suppress(Exception):
+            if shortcut_path.exists():
+                shortcut_path.unlink()
+        launcher_path = launcher_target.resolve()
+        ps_script = dedent(
+            f"""
+            $WshShell = New-Object -ComObject WScript.Shell
+            $Shortcut = $WshShell.CreateShortcut('{shortcut_path}')
+            $Shortcut.TargetPath = '{launcher_path}'
+            $Shortcut.WorkingDirectory = '{launcher_path.parent}'
+            $Shortcut.IconLocation = '{launcher_path},0'
+            $Shortcut.Save()
+            """
+        ).strip()
+        subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                ps_script,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
         )
 
     def install(self) -> None:
@@ -228,6 +268,7 @@ class InstallerWindow:
             launcher_target = self._copy_launcher()
             self._set_progress(82, "Guardando versión instalada...")
             self._copy_version_file()
+            self._write_update_feed()
             self._set_progress(90, "Creando acceso directo en el escritorio...")
             self._create_desktop_shortcut(launcher_target)
             self._set_progress(100, "Instalación completada correctamente.")

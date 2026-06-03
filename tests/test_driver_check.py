@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from services.driver_check import (
     PrinterDriverMissingError,
@@ -18,6 +19,16 @@ class TestDriverCheck(unittest.TestCase):
         self.assertTrue(status.installed)
         self.assertEqual(status.message, "")
 
+    def test_powershell_fallback_detects_printer_when_qt_misses_it(self):
+        with patch("services.driver_check.powershell_printer_names", return_value=("SATO WS408",)):
+            status = check_printer_driver(
+                "SATO WS408",
+                printer_names_provider=lambda: [],
+            )
+
+        self.assertTrue(status.installed)
+        self.assertIn("SATO WS408", status.available_printers)
+
     def test_missing_driver_message_guides_user_to_it(self):
         message = missing_driver_message("SATO WS408")
 
@@ -26,11 +37,12 @@ class TestDriverCheck(unittest.TestCase):
         self.assertIn("departamento de informática", message)
 
     def test_ensure_printer_driver_raises_when_missing(self):
-        with self.assertRaises(PrinterDriverMissingError):
-            ensure_printer_driver(
-                "SATO WS408",
-                printer_names_provider=lambda: ["Microsoft Print to PDF"],
-            )
+        with patch("services.driver_check.powershell_printer_names", return_value=()):
+            with self.assertRaises(PrinterDriverMissingError):
+                ensure_printer_driver(
+                    "SATO WS408",
+                    printer_names_provider=lambda: ["Microsoft Print to PDF"],
+                )
 
 
 if __name__ == "__main__":

@@ -9,8 +9,9 @@ APP_EXE_NAME = "GeneradorEtiquetasSAP.exe"
 LAUNCHER_EXE_NAME = "Launcher_GeneradorEtiquetasSAP.exe"
 INSTALLER_EXE_NAME = "Installer_GeneradorEtiquetasSAP.exe"
 RELEASE_SHORT_NAME = "GESAP"
+UPDATE_FEED_FILE_NAME = "update_feed.json"
 
-RELEASE_VERSION = "0.05.14.7"
+RELEASE_VERSION = "0.05.14.9"
 
 INSTALL_ROOT = Path(r"C:\PDI_APP\GeneradorEtiquetasSAP")
 INSTALL_APP_DIR = INSTALL_ROOT / "app"
