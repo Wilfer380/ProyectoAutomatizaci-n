@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generador de Etiquetas SAP — Documentación interactiva</title>
+  <style>
+    :root{--bg:#0b1120;--card:#111827;--text:#e5e7eb;--muted:#94a3b8;--line:#1f2937;--accent:#60a5fa;--ok:#22c55e;--warn:#f59e0b;}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:linear-gradient(180deg,#050814,#0b1120 24%);color:var(--text)}
+    header{position:sticky;top:0;z-index:10;background:rgba(17,24,39,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+    .wrap{max-width:1180px;margin:0 auto;padding:20px}
+    h1{margin:0;font-size:32px}
+    p{line-height:1.55}
+    .sub{color:var(--muted);margin:.35rem 0 0}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
+    .search{flex:1;min-width:260px;padding:12px 14px;border-radius:12px;border:1px solid #334155;background:#f8fafc;color:#0f172a}
+    .btn{padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:#0f172a;color:var(--text);cursor:pointer;font-weight:600}
+    .btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0 20px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+    .card h3{margin:0 0 8px;font-size:16px}
+    .card p{margin:0;color:var(--muted)}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 10px}
+    .tab{padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:#0f172a;color:var(--text);cursor:pointer;font-weight:700}
+    .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    section{display:none}
+    section.active{display:block}
+    details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+    summary{cursor:pointer;font-weight:800}
+    .note{background:#1f2937;border-left:4px solid var(--warn);padding:12px 14px;border-radius:10px;color:#f8fafc;margin:8px 0 16px}
+    .split{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+    table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+    th{background:#0f172a;color:#f8fafc}
+    code{background:#0f172a;padding:2px 6px;border-radius:6px;color:#93c5fd}
+    .hidden{display:none !important}
+    .footer{padding:20px 0 40px;color:var(--muted);font-size:13px}
+    .tag{display:inline-block;margin-left:8px;padding:4px 10px;border-radius:999px;background:#1e293b;color:#cbd5e1;font-size:12px}
+    ul,ol{margin-top:8px}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Generador de Etiquetas SAP</h1>
+    <p class="sub">Documentación interactiva para usuarios y desarrolladores</p>
+    <div class="toolbar">
+      <input id="search" class="search" type="search" placeholder="Buscar en toda la documentación..." />
+      <button class="btn active" data-switch="usuario">Usuario</button>
+      <button class="btn" data-switch="tecnico">Técnico</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <div class="card"><h3>Propósito</h3><p>Automatizar la generación, revisión e impresión de etiquetas SAP desde Excel.</p></div>
+    <div class="card"><h3>Tecnología</h3><p>Python + PySide6 + openpyxl + QPrinter/QPainter.</p></div>
+    <div class="card"><h3>Datos</h3><p>No usa base de datos; trabaja con Excel y JSON local.</p></div>
+    <div class="card"><h3>Salida</h3><p>Vista previa nativa e impresión en SATO WS408.</p></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="usuario">Manual de usuario</button>
+    <button class="tab" data-tab="tecnico">Manual técnico</button>
+  </div>
+
+  <section id="usuario" class="active">
+    <details open>
+      <summary>¿Qué es este programa?</summary>
+      <p>Es una aplicación de escritorio para generar etiquetas de inventario desde un archivo Excel, revisarlas antes de imprimir y enviarlas a la impresora configurada.</p>
+    </details>
+
+    <details>
+      <summary>¿Para qué sirve?</summary>
+      <ul>
+        <li>Cargar información desde Excel.</li>
+        <li>Elegir filtros o etiquetas.</li>
+        <li>Ver una vista previa de las etiquetas.</li>
+        <li>Imprimir en la impresora definida.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>¿Con qué fin se hizo?</summary>
+      <p>Se creó para automatizar un proceso que antes era manual, lento y más propenso a errores.</p>
+    </details>
+
+    <details>
+      <summary>Uso paso a paso</summary>
+      <ol>
+        <li>Abrí el programa.</li>
+        <li>Hacé clic en <b>Seleccionar Excel</b>.</li>
+        <li>Elegí el archivo con los datos.</li>
+        <li>Esperá la carga de registros.</li>
+        <li>Hacé clic en <b>Seleccionar filtros</b>.</li>
+        <li>Elegí uno o varios filtros/etiquetas.</li>
+        <li>Presioná <b>Generar etiquetas</b>.</li>
+        <li>Revisá la vista previa.</li>
+        <li>Confirmá la impresión si todo está bien.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>Requisitos</summary>
+      <ul>
+        <li>Windows.</li>
+        <li>Archivo Excel válido.</li>
+        <li>Impresora instalada.</li>
+        <li>Para imprimir: <b>SATO WS408</b>.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Errores comunes</summary>
+      <ul>
+        <li>El Excel no existe o está bloqueado.</li>
+        <li>No se detecta la impresora.</li>
+        <li>No hay filtros seleccionados.</li>
+        <li>La vista previa no coincide con lo esperado.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="tecnico">
+    <div class="note">Esta sección está pensada para desarrolladores que retomen el proyecto y necesiten continuar sin perder contexto.</div>
+
+    <details open>
+      <summary>Descripción general</summary>
+      <p>Aplicación de escritorio desarrollada en <b>Python</b> con <b>PySide6</b> para leer datos desde Excel, procesarlos, previsualizar etiquetas e imprimirlas en una impresora térmica.</p>
+    </details>
+
+    <details>
+      <summary>Tecnologías y dependencias</summary>
+      <table>
+        <tr><th>Tecnología</th><th>Uso</th></tr>
+        <tr><td>Python</td><td>Lenguaje principal.</td></tr>
+        <tr><td>PySide6</td><td>Interfaz gráfica.</td></tr>
+        <tr><td>openpyxl</td><td>Lectura de Excel.</td></tr>
+        <tr><td>Pillow</td><td>Imágenes.</td></tr>
+        <tr><td>QPrinter / QPainter</td><td>Vista previa e impresión.</td></tr>
+        <tr><td>JSON</td><td>Configuración local.</td></tr>
+      </table>
+      <p>Dependencias en <code>requirements.txt</code>: <code>PySide6</code>, <code>Pillow</code> y <code>openpyxl</code>.</p>
+    </details>
+
+    <details>
+      <summary>¿Usa base de datos?</summary>
+      <p>No. El sistema no usa base de datos. El origen principal es el Excel y la configuración se guarda localmente en JSON.</p>
+    </details>
+
+    <details>
+      <summary>Arquitectura</summary>
+      <ul>
+        <li><code>main.py</code> → arranque de la app.</li>
+        <li><code>ui/</code> → ventanas y diálogos.</li>
+        <li><code>view_models/</code> → estado y coordinación.</li>
+        <li><code>services/</code> → Excel, validación, impresión y driver.</li>
+        <li><code>models/</code> → estructuras de datos.</li>
+        <li><code>utils/</code> → constantes, logging y configuración.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Flujo técnico</summary>
+      <ol>
+        <li><code>main.py</code> inicia Qt y carga configuración.</li>
+        <li>El usuario selecciona el Excel.</li>
+        <li><code>ExcelService</code> extrae registros e imágenes.</li>
+        <li><code>MainViewModel</code> agrupa datos por filtro.</li>
+        <li>El usuario selecciona etiquetas.</li>
+        <li><code>PrintService</code> renderiza la vista previa.</li>
+        <li><code>driver_check.py</code> valida la impresora.</li>
+        <li>Se imprime en SATO WS408.</li>
+      </ol>
+    </details>
+
+    <details>
+      <summary>Buenas prácticas observadas</summary>
+      <ul>
+        <li>Separación de responsabilidades.</li>
+        <li>ViewModel para desacoplar UI y lógica.</li>
+        <li>Validación previa antes de imprimir.</li>
+        <li>Logging centralizado.</li>
+        <li>Mensajes amigables al usuario.</li>
+        <li>Configuración local sin hardcodear el flujo.</li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Archivos clave para continuar</summary>
+      <ul>
+        <li><code>main.py</code></li>
+        <li><code>ui/main_window.py</code></li>
+        <li><code>view_models/main_view_model.py</code></li>
+        <li><code>services/excel_service.py</code></li>
+        <li><code>services/print_service.py</code></li>
+        <li><code>services/validation_service.py</code></li>
+        <li><code>services/driver_check.py</code></li>
+        <li><code>utils/constants.py</code></li>
+        <li><code>utils/config.py</code></li>
+      </ul>
+    </details>
+
+    <details>
+      <summary>Estado actual</summary>
+      <ul>
+        <li>Lee Excel.</li>
+        <li>Extrae registros e imágenes.</li>
+        <li>Permite seleccionar filtros.</li>
+        <li>Genera vista previa.</li>
+        <li>Imprime directamente.</li>
+        <li>No depende de base de datos.</li>
+      </ul>
+    </details>
+  </section>
+
+  <div class="footer">Guardá este archivo como <code>docs/interactive.html</code> y abrilo con doble clic en el navegador.</div>
+</main>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const sections = document.querySelectorAll('section');
+  const switches = document.querySelectorAll('[data-switch]');
+  const search = document.getElementById('search');
+
+  function setTab(name){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    sections.forEach(s => s.classList.toggle('active', s.id === name));
+  }
+  tabs.forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+  switches.forEach(b => b.addEventListener('click', () => setTab(b.dataset.switch)));
+
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase();
+    document.querySelectorAll('details').forEach(d => {
+      const hit = !q || d.innerText.toLowerCase().includes(q);
+      d.classList.toggle('hidden', !hit);
+    });
+  });
+</script>
+</body>
+</html>
