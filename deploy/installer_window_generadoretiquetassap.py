@@ -19,6 +19,7 @@ from deploy.paths_config_generadoretiquetassap import (
     INSTALL_APP_DIR,
     INSTALL_ROOT,
     LAUNCHER_EXE_NAME,
+    RELEASE_SHORT_NAME,
     UPDATE_FEED_FILE_NAME,
 )
 from utils.runtime import get_user_home_dir
@@ -29,6 +30,7 @@ printer_driver_preflight = import_module("deploy.printer_driver_preflight")
 WEG_BLUE = "#003E7E"
 WEG_YELLOW = "#F8C200"
 WEG_PALE = "#D8E3F0"
+DOWNLOADS_UPDATE_MODE = "downloads-latest-extracted"
 
 
 def runtime_base_dir() -> Path:
@@ -190,10 +192,19 @@ class InstallerWindow:
 
     def _write_update_feed(self) -> None:
         INSTALL_ROOT.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "update_root": str(self.source_dir),
-            "version_file": "version.json",
-        }
+        downloads_dir = get_user_home_dir() / "Downloads"
+        payload = {"version_file": "version.json"}
+        try:
+            self.source_dir.relative_to(downloads_dir)
+            payload.update(
+                {
+                    "update_mode": DOWNLOADS_UPDATE_MODE,
+                    "downloads_dir": str(downloads_dir),
+                    "release_prefix": RELEASE_SHORT_NAME,
+                }
+            )
+        except ValueError:
+            payload["update_root"] = str(self.source_dir)
         (INSTALL_ROOT / UPDATE_FEED_FILE_NAME).write_text(
             json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8"
         )

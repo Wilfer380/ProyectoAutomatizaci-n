@@ -1,12 +1,14 @@
 GeneradorEtiquetasSAP - paquete de instalación portable
-Versión: 0.05.14.9
+Versión: 0.05.14.15
 
 INSTRUCCIONES
-1. Extraiga este ZIP en una carpeta local, por ejemplo Descargas.
+1. Extraiga este ZIP en una carpeta local, preferiblemente Descargas.
 2. Ejecute Installer_GeneradorEtiquetasSAP.exe con doble clic.
-3. El instalador copiará la aplicación a:
+3. El instalador copiar? la aplicaci?n a:
    C:\PDI_APP\GeneradorEtiquetasSAP
-4. Se creará un acceso directo en el escritorio llamado GeneradorEtiquetasSAP.
+4. Se crear? un acceso directo en el escritorio llamado GeneradorEtiquetasSAP.
+5. Para futuras actualizaciones, descargue el nuevo ZIP y extr?igalo nuevamente en Descargas con una carpeta GESAP_xx visible.
+6. Luego abra el acceso directo instalado; el launcher buscar? autom?ticamente la carpeta GESAP m?s nueva en Descargas.
 
 REQUISITOS DEL EQUIPO
 - Windows.

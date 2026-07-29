@@ -41,17 +41,21 @@ class LabelRenderer:
         width_px: int,
         height_px: int,
     ) -> None:
-        content_shift_x = -12.0
-        border = 4
+        px_per_mm_x = width_px / LABEL_WIDTH_MM
+        px_per_mm_y = height_px / LABEL_HEIGHT_MM
+        # Safety padding keeps the border/content inside the printable area.
+        left_padding = 2.25 * px_per_mm_x
+        top_padding = 1.75 * px_per_mm_y
+        right_padding = 1.25 * px_per_mm_x
+        bottom_padding = 1.25 * px_per_mm_y
         label_rect = QRectF(
-            border + content_shift_x,
-            border,
-            width_px - (border * 2),
-            height_px - (border * 2),
+            left_padding,
+            top_padding,
+            width_px - left_padding - right_padding,
+            height_px - top_padding - bottom_padding,
         )
-        painter.drawRect(label_rect)
 
-        logo_rect = QRectF(8.0 + content_shift_x, 8.0, 68.0, 42.0)
+        logo_rect = QRectF(label_rect.left() + 4.0, label_rect.top() + 4.0, 68.0, 42.0)
         logo = (
             item.image_data
             if item.image_data is not None and not item.image_data.isNull()
@@ -60,14 +64,19 @@ class LabelRenderer:
         if not logo.isNull():
             painter.drawImage(logo_rect, logo)
 
-        header_rect = QRectF(70.0 + content_shift_x, 8.0, width_px - 78.0, 54.0)
+        header_rect = QRectF(
+            logo_rect.right() + 8.0,
+            label_rect.top() + 2.0,
+            label_rect.right() - logo_rect.right() - 14.0,
+            54.0,
+        )
 
         section_font = QFont(painter.font())
         section_font.setBold(False)
         section_font.setPixelSize(22)
         painter.setFont(section_font)
         painter.drawText(
-            QRectF(header_rect.left(), 8.0, header_rect.width(), 22.0),
+            QRectF(header_rect.left(), label_rect.top() + 2.0, header_rect.width(), 22.0),
             Qt.AlignmentFlag.AlignCenter,
             item.section,
         )
@@ -77,14 +86,19 @@ class LabelRenderer:
         id_font.setBold(True)
         painter.setFont(id_font)
         painter.drawText(
-            QRectF(header_rect.left(), 31.0, header_rect.width(), 28.0),
+            QRectF(header_rect.left(), label_rect.top() + 25.0, header_rect.width(), 28.0),
             Qt.AlignmentFlag.AlignCenter,
             item.asset_id,
         )
 
         description, tag_code = self._split_description_and_code(item.asset_name)
 
-        desc_rect = QRectF(14.0 + content_shift_x, 74.0, width_px - 28.0, 54.0)
+        desc_rect = QRectF(
+            label_rect.left() + 20.0,
+            label_rect.top() + 64.0,
+            label_rect.width() - 40.0,
+            54.0,
+        )
         desc_flags = Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap
         desc_font = self._fit_font(
             painter.font(),
@@ -103,7 +117,12 @@ class LabelRenderer:
         code_font.setPixelSize(18)
         painter.setFont(code_font)
         painter.drawText(
-            QRectF(14.0 + content_shift_x, 129.0, width_px - 28.0, 24.0),
+            QRectF(
+                label_rect.left() + 20.0,
+                label_rect.bottom() - 28.0,
+                label_rect.width() - 40.0,
+                22.0,
+            ),
             Qt.AlignmentFlag.AlignCenter,
             tag_code,
         )
@@ -160,7 +179,7 @@ class PrintService:
         image.fill(Qt.GlobalColor.white)
         painter = self._painter_factory()
         if not painter.begin(image):
-            raise RuntimeError("No se pudo generar la previsualización de etiqueta.")
+            raise RuntimeError("No se pudo generar la previsualizaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n de etiqueta.")
         try:
             self._render_single_label(painter, item, width_px, height_px)
         finally:
@@ -185,7 +204,7 @@ class PrintService:
         painter = self._painter_factory()
 
         if not painter.begin(printer):
-            raise RuntimeError("No se pudo iniciar el trabajo de impresión.")
+            raise RuntimeError("No se pudo iniciar el trabajo de impresiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.")
 
         try:
             for index, item in enumerate(items):
@@ -201,7 +220,7 @@ class PrintService:
         printer = self._create_configured_printer()
         painter = self._painter_factory()
         if not painter.begin(printer):
-            raise RuntimeError("No se pudo iniciar el trabajo de impresión.")
+            raise RuntimeError("No se pudo iniciar el trabajo de impresiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n.")
         try:
             self._render_single_label(painter, item, width_px, height_px)
         finally:
@@ -216,9 +235,27 @@ class PrintService:
     ) -> None:
         painter.save()
         try:
+            self._prepare_landscape_canvas(painter)
             self._renderer.render_label(painter, item, width_px, height_px)
         finally:
             painter.restore()
+
+    def _prepare_landscape_canvas(self, painter: QPainter) -> None:
+        device_getter = getattr(painter, "device", None)
+        if not callable(device_getter):
+            return
+        device = device_getter()
+        layout_getter = getattr(device, "pageLayout", None)
+        if not callable(layout_getter):
+            return
+        try:
+            paint_rect = layout_getter().paintRectPixels(device.resolution())
+        except Exception:
+            return
+        if paint_rect.height() > paint_rect.width():
+            # Rotate using the printable height; the axes swap after rotation.
+            painter.translate(paint_rect.width(), 0)
+            painter.rotate(90)
 
     def _label_pixel_size(self) -> tuple[int, int]:
         return (
@@ -230,19 +267,30 @@ class PrintService:
         printer = self._printer_factory(QPrinter.PrinterMode.HighResolution)
         printer.setPrinterName(self.config.printer_name)
         printer.setResolution(self.config.resolution_dpi)
+        if hasattr(printer, "setFullPage"):
+            printer.setFullPage(True)
 
         page_size = QPageSize(
             QSizeF(self.config.label_width_mm, self.config.label_height_mm),
             QPageSize.Unit.Millimeter,
         )
-        printer.setPageSize(page_size)
-        printer.setPageMargins(
-            QMarginsF(
-                self.config.margin_mm,
-                self.config.margin_mm,
-                self.config.margin_mm,
-                self.config.margin_mm,
-            ),
+        margins = QMarginsF(
+            self.config.margin_mm,
+            self.config.margin_mm,
+            self.config.margin_mm,
+            self.config.margin_mm,
+        )
+        page_layout = QPageLayout(
+            page_size,
+            QPageLayout.Orientation.Landscape,
+            margins,
             QPageLayout.Unit.Millimeter,
         )
+        if hasattr(printer, "setPageLayout"):
+            printer.setPageLayout(page_layout)
+        else:
+            printer.setPageSize(page_size)
+            if hasattr(printer, "setPageOrientation"):
+                printer.setPageOrientation(QPageLayout.Orientation.Landscape)
+            printer.setPageMargins(margins, QPageLayout.Unit.Millimeter)
         return printer

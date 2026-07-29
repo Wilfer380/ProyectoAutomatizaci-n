@@ -15,8 +15,10 @@ from deploy.paths_config_generadoretiquetassap import (
     INSTALL_ROOT,
     INSTALLER_EXE_NAME,
     LATEST_RELEASE_DIR,
+    RELEASE_SHORT_NAME,
     UPDATE_FEED_FILE_NAME,
 )
+from utils.runtime import get_user_home_dir
 
 
 def _show_error(message: str) -> None:
@@ -49,11 +51,38 @@ def _version_text(path: Path) -> str:
         return "0"
 
 
+def _find_latest_download_release(downloads_dir: Path, release_prefix: str) -> Path | None:
+    best_root: Path | None = None
+    best_version: tuple[int, ...] = (0,)
+    if not downloads_dir.exists():
+        return None
+    for child in downloads_dir.iterdir():
+        if not child.is_dir() or not child.name.startswith(f"{release_prefix}_"):
+            continue
+        version_file = child / "version.json"
+        installer_file = child / INSTALLER_EXE_NAME
+        if not version_file.exists() or not installer_file.exists():
+            continue
+        version = _read_version(version_file)
+        if version > best_version:
+            best_version = version
+            best_root = child
+    return best_root
+
+
 def _read_update_root() -> Path:
     feed_file = INSTALL_ROOT / UPDATE_FEED_FILE_NAME
     if feed_file.exists():
         try:
             data = json.loads(feed_file.read_text(encoding="utf-8"))
+            update_mode = str(data.get("update_mode", "")).strip().lower()
+            if update_mode == "downloads-latest-extracted":
+                downloads_dir_value = str(data.get("downloads_dir", "")).strip()
+                downloads_dir = Path(downloads_dir_value) if downloads_dir_value else get_user_home_dir() / "Downloads"
+                release_prefix = str(data.get("release_prefix", RELEASE_SHORT_NAME)).strip() or RELEASE_SHORT_NAME
+                downloads_release = _find_latest_download_release(downloads_dir, release_prefix)
+                if downloads_release:
+                    return downloads_release
             update_root = str(data.get("update_root", "")).strip()
             if update_root:
                 return Path(update_root)

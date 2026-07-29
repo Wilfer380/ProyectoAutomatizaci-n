@@ -1,4 +1,4 @@
-('\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+('\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
  'diseños\\FORMATOS '
  'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\GeneradorEtiquetasSAP.pkg',
  {'BINARY': True,
@@ -12,32 +12,32 @@
   'SYMLINK': False},
  [('pyi-contents-directory _internal', '', 'OPTION'),
   ('PYZ-00.pyz',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\PYZ-00.pyz',
    'PYZ'),
   ('struct',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\localpycs\\struct.pyc',
    'PYMODULE'),
   ('pyimod01_archive',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\localpycs\\pyimod01_archive.pyc',
    'PYMODULE'),
   ('pyimod02_importers',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\localpycs\\pyimod02_importers.pyc',
    'PYMODULE'),
   ('pyimod03_ctypes',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\localpycs\\pyimod03_ctypes.pyc',
    'PYMODULE'),
   ('pyimod04_pywin32',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\localpycs\\pyimod04_pywin32.pyc',
    'PYMODULE'),
@@ -57,7 +57,7 @@
    'C:\\Users\\wandica\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks\\pyi_rth_pyside6.py',
    'PYSOURCE'),
   ('main',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\main.py',
    'PYSOURCE')],
  'python313.dll',

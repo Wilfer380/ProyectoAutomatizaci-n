@@ -2,7 +2,7 @@
    'C:\\Users\\wandica\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\81d243bd2c585b0f4821__mypyc.cp313-win_amd64.pyd',
    'EXTENSION'),
   ('GeneradorEtiquetasSAP.exe',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\GeneradorEtiquetasSAP.exe',
    'EXECUTABLE'),
@@ -676,35 +676,35 @@
    'Adoptium\\jdk-11.0.30.7-hotspot\\bin\\api-ms-win-crt-utility-l1-1-0.dll',
    'BINARY'),
   ('app_settings.json',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\app_settings.json',
    'DATA'),
   ('assets\\Thumbs.db',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\Thumbs.db',
    'DATA'),
   ('assets\\app_icon.ico',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\app_icon.ico',
    'DATA'),
   ('assets\\app_icon.png',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\app_icon.png',
    'DATA'),
   ('assets\\app_icon.svg',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\app_icon.svg',
    'DATA'),
   ('assets\\checkbox_checked_blue.svg',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\checkbox_checked_blue.svg',
    'DATA'),
   ('assets\\weg_logo.png',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\assets\\weg_logo.png',
    'DATA'),
   ('base_library.zip',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\base_library.zip',
    'DATA'),

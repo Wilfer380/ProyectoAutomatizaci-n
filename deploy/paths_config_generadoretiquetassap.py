@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -11,7 +11,7 @@ INSTALLER_EXE_NAME = "Installer_GeneradorEtiquetasSAP.exe"
 RELEASE_SHORT_NAME = "GESAP"
 UPDATE_FEED_FILE_NAME = "update_feed.json"
 
-RELEASE_VERSION = "0.05.14.9"
+RELEASE_VERSION = "0.05.14.15"
 
 INSTALL_ROOT = Path(r"C:\PDI_APP\GeneradorEtiquetasSAP")
 INSTALL_APP_DIR = INSTALL_ROOT / "app"

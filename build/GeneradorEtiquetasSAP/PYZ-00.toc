@@ -1,4 +1,4 @@
-('\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+('\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
  'diseños\\FORMATOS '
  'SAP\\Automatización\\build\\GeneradorEtiquetasSAP\\PYZ-00.pyz',
  [('PIL',
@@ -900,11 +900,11 @@
    'PYMODULE'),
   ('models', '-', 'PYMODULE'),
   ('models.app_settings',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\models\\app_settings.py',
    'PYMODULE'),
   ('models.asset_record',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\models\\asset_record.py',
    'PYMODULE'),
   ('multiprocessing',
@@ -1620,15 +1620,15 @@
    'PYMODULE'),
   ('services', '-', 'PYMODULE'),
   ('services.driver_check',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\services\\driver_check.py',
    'PYMODULE'),
   ('services.excel_service',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\services\\excel_service.py',
    'PYMODULE'),
   ('services.print_service',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\services\\print_service.py',
    'PYMODULE'),
   ('shiboken6',
@@ -1719,23 +1719,23 @@
    'C:\\Users\\wandica\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\typing_extensions.py',
    'PYMODULE'),
   ('ui',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\ui\\__init__.py',
    'PYMODULE'),
   ('ui.filter_selection_dialog',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\ui\\filter_selection_dialog.py',
    'PYMODULE'),
   ('ui.label_selection_dialog',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\ui\\label_selection_dialog.py',
    'PYMODULE'),
   ('ui.main_window',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\ui\\main_window.py',
    'PYMODULE'),
   ('ui.preview_subwindow',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\ui\\preview_subwindow.py',
    'PYMODULE'),
   ('unittest',
@@ -1788,40 +1788,40 @@
    'PYMODULE'),
   ('utils', '-', 'PYMODULE'),
   ('utils.config',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\utils\\config.py',
    'PYMODULE'),
   ('utils.constants',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\utils\\constants.py',
    'PYMODULE'),
   ('utils.logger',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\utils\\logger.py',
    'PYMODULE'),
   ('utils.resources',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\utils\\resources.py',
    'PYMODULE'),
   ('utils.runtime',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\utils\\runtime.py',
    'PYMODULE'),
   ('view_models',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\view_models\\__init__.py',
    'PYMODULE'),
   ('view_models.label_item_view_model',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS '
    'SAP\\Automatización\\view_models\\label_item_view_model.py',
    'PYMODULE'),
   ('view_models.main_view_model',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\view_models\\main_view_model.py',
    'PYMODULE'),
   ('view_models.preview_view_model',
-   '\\\\COMDE019\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
+   '\\\\COMDE015\\PUBLIC$\\CO_MDE_DISENO_DI\\RESPALDO DISEÑOS\\SAP - Respaldo '
    'diseños\\FORMATOS SAP\\Automatización\\view_models\\preview_view_model.py',
    'PYMODULE'),
   ('webbrowser',

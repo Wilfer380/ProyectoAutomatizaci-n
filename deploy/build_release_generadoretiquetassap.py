@@ -80,11 +80,13 @@ def write_leeme(target: Path) -> None:
 Versión: {RELEASE_VERSION}
 
 INSTRUCCIONES
-1. Extraiga este ZIP en una carpeta local, por ejemplo Descargas.
+1. Extraiga este ZIP en una carpeta local, preferiblemente Descargas.
 2. Ejecute {INSTALLER_EXE_NAME} con doble clic.
-3. El instalador copiará la aplicación a:
+3. El instalador copiar? la aplicaci?n a:
    {INSTALL_ROOT}
-4. Se creará un acceso directo en el escritorio llamado {APP_DISPLAY_NAME}.
+4. Se crear? un acceso directo en el escritorio llamado {APP_DISPLAY_NAME}.
+5. Para futuras actualizaciones, descargue el nuevo ZIP y extr?igalo nuevamente en Descargas con una carpeta GESAP_xx visible.
+6. Luego abra el acceso directo instalado; el launcher buscar? autom?ticamente la carpeta GESAP m?s nueva en Descargas.
 
 REQUISITOS DEL EQUIPO
 - Windows.
