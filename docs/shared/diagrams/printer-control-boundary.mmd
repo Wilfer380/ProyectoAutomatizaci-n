@@ -1,0 +1,23 @@
+flowchart LR
+    subgraph App[Application-controlled]
+        A1[Excel selection]
+        A2[Filter / label selection]
+        A3[Preview with LabelRenderer]
+        A4[QPrinter job\n48x23mm, 203 DPI, 0 margins]
+        A5[One job per label]
+    end
+
+    subgraph Machine[Machine / Windows-controlled]
+        M1[SATO WS4 driver]
+        M2[Windows queue name\nSATO WS408]
+        M3[Custom stock\n48x23mm]
+        M4[Gap sensor calibration]
+        M5[Darkness / speed / media]
+        M6[Windows spooler]
+    end
+
+    A4 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6 --> P[[Physical SATO WS408 label]]
+
+    P --> D{Problem?}
+    D -- Preview wrong too --> A3
+    D -- Preview right, paper wrong --> Machine

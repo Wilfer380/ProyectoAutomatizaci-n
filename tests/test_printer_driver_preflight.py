@@ -21,6 +21,8 @@ class TestPrinterDriverPreflight(unittest.TestCase):
         message = preflight.format_available_driver_artifacts(["drivers/SATO_WS4.exe"])
 
         self.assertIn("departamento de informática", message)
+        self.assertIn("48 mm x 23 mm", message)
+        self.assertIn("203 DPI", message)
         self.assertIn("drivers/SATO_WS4.exe", message)
 
 

@@ -112,6 +112,10 @@ La impresión se hace con `QPrinter` y `QPainter`, sin Word ni aplicaciones exte
 
 Diagrama: [`../shared/diagrams/sato-print-pipeline.mmd`](../shared/diagrams/sato-print-pipeline.mmd)
 
+Para soporte de máquina, driver, calibración, spooler y pruebas físicas, ver: [`09-guia-impresion-sato.md`](09-guia-impresion-sato.md).
+
+Diagrama de frontera app/máquina: [`../shared/diagrams/printer-control-boundary.mmd`](../shared/diagrams/printer-control-boundary.mmd)
+
 ## Decisiones y por qué se tomaron
 
 | Decisión | Por qué |
@@ -142,6 +146,7 @@ Diagrama: [`../shared/diagrams/sato-print-pipeline.mmd`](../shared/diagrams/sato
 | Excel inexistente o inválido | Mostrar error amigable y no continuar. |
 | No hay registros | No imprimir; informar que no hay etiquetas. |
 | Driver SATO ausente | Pedir instalar/configurar `SATO WS408` o contactar TI. |
+| Preview correcto pero papel corrido | Revisar driver, stock 48x23, sensor, calibración y spooler. |
 | Fallo al iniciar impresión | Mostrar error y permitir reintento. |
 | Excepción inesperada | Guardar detalle técnico en logs y mostrar mensaje seguro. |
 
@@ -182,5 +187,6 @@ Checklist de revisión:
 | No aparece la impresora | Driver no instalado o nombre distinto. | Instalar/configurar `SATO WS408` desde TI. |
 | El Excel no carga filtros | La columna `Seccion` no existe o está vacía. | Revisar `Hoja1` y encabezados. |
 | La etiqueta se ve vacía | Falta información del activo o imagen mal anclada. | Revisar fila del Excel. |
-| El lote imprime corrido | Cambios en driver/configuración. | Mantener `separate_jobs=True` y validar en SATO real. |
+| El lote imprime corrido | Cambios en driver/configuración. | Mantener `separate_jobs=True`, limpiar cola y validar stock/calibración. |
 | Preview no coincide con impresión | Se modificó renderer o DPI. | Verificar `LabelRenderer` y `LabelPrintConfig`. |
+| Solo falla una máquina | Configuración local de driver/Windows. | Usar [`09-guia-impresion-sato.md`](09-guia-impresion-sato.md). |
